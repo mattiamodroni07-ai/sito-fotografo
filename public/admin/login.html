@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Accesso fotografo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  body { display: flex; align-items: center; min-height: 100vh; }
+  .login-wrap { width: 100%; max-width: 400px; margin: 0 auto; padding: 24px; }
+  .login-wrap h1 { font-size: 28px; text-align: center; margin: 8px 0 28px; }
+  .error-msg { color: var(--terracotta-deep); font-size: 14px; margin-top: 4px; display: none; }
+</style>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="eyebrow text-center" style="display:block">Pannello fotografo</div>
+    <h1>Accedi ai tuoi eventi</h1>
+    <div class="card">
+      <form id="login-form">
+        <div class="field">
+          <label for="username">Nome utente</label>
+          <input type="text" id="username" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" autocomplete="current-password" required>
+        </div>
+        <p class="error-msg" id="error-msg">Nome utente o password non corretti.</p>
+        <button type="submit" class="btn btn-primary" style="width:100%; margin-top:8px">Accedi</button>
+      </form>
+    </div>
+  </div>
+
+<script src="/js/login.js"></script>
+</body>
+</html>

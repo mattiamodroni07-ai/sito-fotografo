@@ -1,0 +1,153 @@
+/* ============================================
+   RICORDI — Design system
+   Palette calda da festa: crema, terracotta, ocra
+   ============================================ */
+
+:root {
+  --cream: #FBF3E7;
+  --cream-deep: #F2E6D3;
+  --ink: #2B2118;
+  --terracotta: #D9683B;
+  --terracotta-deep: #B84F28;
+  --ocra: #E8A23D;
+  --sage: #7A8B6F;
+  --white: #FFFEFB;
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter', -apple-system, sans-serif;
+
+  --radius: 18px;
+  --shadow-soft: 0 8px 30px rgba(43, 33, 24, 0.08);
+  --shadow-lift: 0 16px 40px rgba(43, 33, 24, 0.14);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--cream);
+  color: var(--ink);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+a { color: var(--terracotta-deep); text-decoration: none; }
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ---- Bottoni ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: var(--terracotta);
+  color: var(--white);
+  box-shadow: var(--shadow-soft);
+}
+
+.btn-primary:hover { background: var(--terracotta-deep); box-shadow: var(--shadow-lift); }
+
+.btn-primary:disabled {
+  background: #D9C9B3;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+  border: 2px solid var(--cream-deep);
+}
+
+.btn-ghost:hover { border-color: var(--terracotta); }
+
+/* ---- Card ---- */
+.card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  padding: 32px;
+}
+
+/* ---- Input ---- */
+.field {
+  margin-bottom: 18px;
+}
+
+.field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sage);
+  margin-bottom: 8px;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid var(--cream-deep);
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-size: 16px;
+  background: var(--white);
+  color: var(--ink);
+  transition: border-color 0.15s ease;
+}
+
+.field input:focus,
+.field select:focus {
+  outline: none;
+  border-color: var(--terracotta);
+}
+
+/* Focus visibile per accessibilità da tastiera */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--ocra);
+  outline-offset: 2px;
+}
+
+/* ---- Utility ---- */
+.text-center { text-align: center; }
+.eyebrow {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--terracotta);
+}
+
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; gap: 12px; align-items: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
