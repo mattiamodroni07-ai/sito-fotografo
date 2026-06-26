@@ -128,7 +128,7 @@ function openDetail(ev) {
 
     <div class="detail-section">
       <div class="section-title">Foto e video <span class="count-badge">${count}</span></div>
-      <div class="photo-strip" id="photo-strip"><div class="strip-empty">Caricamento…</div></div>
+      <div class="photo-grid" id="photo-grid"><div class="strip-empty">Caricamento…</div></div>
     </div>
 
     <div class="detail-section">
@@ -256,35 +256,96 @@ function wireDetailHandlers(ev) {
   });
 }
 
-// ---- Strip foto ----
+// ---- Griglia foto (mosaico, come la galleria) ----
+
+const ICON_DL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+const ICON_DEL = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>`;
+
+let gridItems = [];   // foto attualmente mostrate nella griglia
 
 async function loadPhotoStrip(eventId) {
-  const strip = document.getElementById('photo-strip');
-  if (!strip) return;
+  const grid = document.getElementById('photo-grid');
+  if (!grid) return;
   try {
     const res = await fetch(`/api/events/${eventId}/media`);
     const items = await res.json();
-    if (!strip.isConnected) return;
-    if (!items.length) { strip.innerHTML = '<div class="strip-empty">Nessuna foto ancora.</div>'; return; }
-    strip.innerHTML = '';
-    items.forEach((item, i) => {
-      const thumb = document.createElement('div');
-      thumb.className = 'strip-thumb';
-      if (item.type === 'video') {
-        const v = document.createElement('video');
-        v.src = item.url; v.muted = true; v.preload = 'metadata';
-        const b = document.createElement('span'); b.className = 'video-badge'; b.textContent = '▶';
-        thumb.appendChild(v); thumb.appendChild(b);
-      } else {
-        const img = document.createElement('img');
-        img.src = item.url; img.loading = 'lazy'; img.alt = '';
-        thumb.appendChild(img);
-      }
-      thumb.addEventListener('click', () => openLightbox(items, i));
-      strip.appendChild(thumb);
-    });
+    if (!grid.isConnected) return;
+    gridItems = items;
+    renderGrid();
   } catch {
-    if (strip.isConnected) strip.innerHTML = '<div class="strip-empty">Impossibile caricare le foto.</div>';
+    if (grid.isConnected) grid.innerHTML = '<div class="strip-empty">Impossibile caricare le foto.</div>';
+  }
+}
+
+function renderGrid() {
+  const grid = document.getElementById('photo-grid');
+  if (!grid) return;
+  if (!gridItems.length) { grid.innerHTML = '<div class="strip-empty">Nessuna foto ancora.</div>'; return; }
+  grid.innerHTML = '';
+  gridItems.forEach((item, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'grid-item';
+
+    const media = document.createElement(item.type === 'video' ? 'video' : 'img');
+    media.src = item.url;
+    if (item.type === 'video') { media.muted = true; media.preload = 'metadata'; }
+    else { media.loading = 'lazy'; media.alt = ''; }
+    cell.appendChild(media);
+
+    if (item.type === 'video') {
+      const b = document.createElement('span'); b.className = 'video-badge'; b.textContent = '▶'; cell.appendChild(b);
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'grid-overlay';
+
+    const dl = document.createElement('button');
+    dl.className = 'grid-btn'; dl.title = 'Scarica'; dl.innerHTML = ICON_DL;
+    dl.addEventListener('click', e => { e.stopPropagation(); downloadItem(item, i); });
+    overlay.appendChild(dl);
+
+    const del = document.createElement('button');
+    del.className = 'grid-btn grid-btn--del'; del.title = 'Elimina'; del.innerHTML = ICON_DEL;
+    del.addEventListener('click', e => { e.stopPropagation(); deleteItem(item); });
+    overlay.appendChild(del);
+
+    cell.appendChild(overlay);
+    cell.addEventListener('click', () => openLightbox(gridItems, i));
+    grid.appendChild(cell);
+  });
+}
+
+async function downloadItem(item, i) {
+  const ext = (item.url.split('.').pop().split('?')[0] || '').toLowerCase();
+  const name = `ricordo-${String(i + 1).padStart(3, '0')}.${ext.length <= 4 ? ext : (item.type === 'video' ? 'mp4' : 'jpg')}`;
+  try {
+    const res = await fetch(item.url);
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  } catch {
+    window.open(item.url, '_blank');
+  }
+}
+
+async function deleteItem(item) {
+  if (!currentEvent) return;
+  if (!confirm('Eliminare definitivamente questo file? L\'azione è irreversibile.')) return;
+  try {
+    const res = await fetch(`/api/events/${currentEvent.id}/media/${item.id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error();
+    gridItems = gridItems.filter(x => x.id !== item.id);
+    currentEvent.media_count = gridItems.length;
+    const ev = allEvents.find(e => e.id === currentEvent.id);
+    if (ev) ev.media_count = gridItems.length;
+    renderGrid();
+    const cb = detailScroll.querySelector('.count-badge');
+    if (cb) cb.textContent = gridItems.length;
+    renderEvents();
+  } catch {
+    alert('Impossibile eliminare il file. Riprova.');
   }
 }
 
@@ -315,60 +376,6 @@ function showLbMedia() {
 }
 function prevPhoto() { if (lbIdx > 0) { lbIdx--; showLbMedia(); } }
 function nextPhoto() { if (lbIdx < lbPhotos.length - 1) { lbIdx++; showLbMedia(); } }
-
-// Scarica il file attualmente aperto nel lightbox
-async function downloadCurrent() {
-  const item = lbPhotos[lbIdx];
-  if (!item) return;
-  const ext = (item.url.split('.').pop().split('?')[0] || '').toLowerCase();
-  const name = `ricordo-${String(lbIdx + 1).padStart(3, '0')}.${ext.length <= 4 ? ext : (item.type === 'video' ? 'mp4' : 'jpg')}`;
-  try {
-    const res = await fetch(item.url);
-    const blob = await res.blob();
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = name;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
-  } catch {
-    window.open(item.url, '_blank');
-  }
-}
-
-// Elimina il file attualmente aperto nel lightbox
-async function deleteCurrent() {
-  const item = lbPhotos[lbIdx];
-  if (!item || !currentEvent) return;
-  if (!confirm('Eliminare definitivamente questo file? L\'azione è irreversibile.')) return;
-  const delBtn = document.getElementById('lb-delete');
-  delBtn.disabled = true;
-  try {
-    const res = await fetch(`/api/events/${currentEvent.id}/media/${item.id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error();
-    lbPhotos.splice(lbIdx, 1);
-    // Aggiorna conteggio evento e card
-    currentEvent.media_count = Math.max(0, (currentEvent.media_count || 1) - 1);
-    const ev = allEvents.find(e => e.id === currentEvent.id);
-    if (ev) ev.media_count = currentEvent.media_count;
-    renderEvents();
-    if (!lbPhotos.length) {
-      closeLightbox();
-    } else {
-      if (lbIdx >= lbPhotos.length) lbIdx = lbPhotos.length - 1;
-      showLbMedia();
-    }
-    // Ricarica la strip e il contatore nella finestra dettaglio
-    loadPhotoStrip(currentEvent.id);
-    const cb = detailScroll.querySelector('.count-badge');
-    if (cb) cb.textContent = currentEvent.media_count;
-  } catch {
-    alert('Impossibile eliminare il file. Riprova.');
-  } finally {
-    delBtn.disabled = false;
-  }
-}
-
-document.getElementById('lb-download').addEventListener('click', e => { e.stopPropagation(); downloadCurrent(); });
-document.getElementById('lb-delete').addEventListener('click', e => { e.stopPropagation(); deleteCurrent(); });
 
 document.getElementById('lb-close').addEventListener('click', closeLightbox);
 lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });

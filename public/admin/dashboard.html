@@ -69,13 +69,13 @@
 
   /* Finestra dettaglio: grande, con scroll interno pulito */
   .detail-box {
-    max-width: 600px; padding: 0;
-    height: 90vh; max-height: 880px;
+    max-width: 720px; padding: 0;
+    height: 92vh; max-height: 940px;
     display: flex; flex-direction: column;
     overflow: hidden;
   }
   /* Su mobile la finestra dettaglio diventa a tutto schermo: scroll naturale */
-  @media (max-width: 640px) {
+  @media (max-width: 760px) {
     #detail-modal { padding: 0; }
     .detail-box {
       max-width: 100%; height: 100%; max-height: 100%;
@@ -101,6 +101,8 @@
 
   /* Corpo scorrevole — scroll pulito su mobile */
   .detail-scroll {
+    flex: 1 1 auto;
+    min-height: 0;            /* indispensabile perché lo scroll funzioni dentro al flex */
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
@@ -140,36 +142,35 @@
   .toggle-label { font-weight: 600; font-size: 15px; margin-bottom: 3px; }
   .toggle-note { font-size: 13px; color: var(--sage); }
 
-  /* Strip foto — scroll orizzontale pulito */
-  .photo-strip {
-    display: flex; gap: 8px;
-    overflow-x: auto; overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-x: contain;
-    padding-bottom: 6px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--terracotta) var(--cream-deep);
-  }
-  .photo-strip::-webkit-scrollbar { height: 5px; }
-  .photo-strip::-webkit-scrollbar-track { background: var(--cream-deep); border-radius: 3px; }
-  .photo-strip::-webkit-scrollbar-thumb { background: var(--terracotta); border-radius: 3px; }
-  .strip-thumb {
-    flex: 0 0 auto;
-    width: 92px; height: 92px;
+  /* Griglia foto a mosaico (come la galleria) */
+  .photo-grid { columns: 2; column-gap: 10px; }
+  @media (min-width: 560px) { .photo-grid { columns: 3; } }
+  .grid-item {
+    break-inside: avoid; margin-bottom: 10px;
     border-radius: 10px; overflow: hidden;
     background: var(--cream-deep);
-    cursor: pointer; position: relative;
-    transition: transform 0.15s ease;
+    position: relative; cursor: pointer; display: block;
   }
-  .strip-thumb:hover { transform: scale(1.04); }
-  .strip-thumb img, .strip-thumb video {
-    width: 100%; height: 100%; object-fit: cover; display: block;
+  .grid-item img, .grid-item video { width: 100%; height: auto; display: block; }
+  .grid-item .video-badge {
+    position: absolute; bottom: 6px; left: 6px;
+    background: rgba(20,15,10,0.65); border-radius: 5px;
+    padding: 1px 6px; font-size: 11px; color: white; pointer-events: none;
   }
-  .strip-thumb .video-badge {
-    position: absolute; bottom: 4px; right: 4px;
-    background: rgba(20,15,10,0.65); border-radius: 4px;
-    padding: 1px 5px; font-size: 11px; color: white; pointer-events: none;
+  /* Bottoni sempre visibili sopra ogni foto */
+  .grid-overlay { position: absolute; top: 6px; right: 6px; display: flex; gap: 6px; z-index: 2; }
+  .grid-btn {
+    width: 34px; height: 34px; border-radius: 9px; border: none;
+    background: rgba(20,15,10,0.55); color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+    transition: transform 0.12s ease, background 0.15s ease;
   }
+  .grid-btn svg { width: 16px; height: 16px; }
+  .grid-btn:active { transform: scale(0.9); }
+  .grid-btn:hover { background: rgba(20,15,10,0.75); }
+  .grid-btn--del { background: rgba(217,56,38,0.82); }
+  .grid-btn--del:hover { background: rgba(184,47,28,0.95); }
   .strip-empty { color: var(--sage); font-size: 14px; padding: 6px 0; }
   .count-badge {
     background: var(--cream-deep); border-radius: 999px;
@@ -223,28 +224,9 @@
   }
   .lb-prev { left: 16px; } .lb-next { right: 16px; }
   .lb-count {
-    position: absolute; bottom: 76px; left: 50%; transform: translateX(-50%);
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
     color: rgba(255,255,255,0.55); font-size: 13px; font-weight: 600; pointer-events: none;
   }
-  /* Barra azioni foto (scarica / elimina) nel lightbox */
-  .lb-actions {
-    position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
-    display: flex; gap: 12px; z-index: 2;
-  }
-  .lb-action {
-    display: flex; align-items: center; gap: 7px;
-    padding: 11px 20px; border-radius: 999px; border: none;
-    font-family: var(--font-body); font-weight: 600; font-size: 14px;
-    cursor: pointer; color: white;
-    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-    transition: background 0.15s ease, transform 0.12s ease;
-  }
-  .lb-action:active { transform: scale(0.94); }
-  .lb-action svg { width: 17px; height: 17px; }
-  .lb-action--dl { background: rgba(255,255,255,0.18); }
-  .lb-action--dl:hover { background: rgba(255,255,255,0.3); }
-  .lb-action--del { background: rgba(217,56,38,0.82); }
-  .lb-action--del:hover { background: rgba(184,47,28,0.95); }
 
   .empty-state { text-align: center; padding: 48px 24px; color: var(--sage); }
 </style>
@@ -308,16 +290,6 @@
   <div class="lb-media-wrap" id="lb-media"></div>
   <button class="lb-nav lb-next" id="lb-next" aria-label="Successivo">›</button>
   <div class="lb-count" id="lb-count"></div>
-  <div class="lb-actions">
-    <button class="lb-action lb-action--dl" id="lb-download">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Scarica
-    </button>
-    <button class="lb-action lb-action--del" id="lb-delete">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
-      Elimina
-    </button>
-  </div>
 </div>
 
 <script src="/js/dashboard.js"></script>
