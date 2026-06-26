@@ -11,80 +11,216 @@
 <style>
   .top-bar {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 24px 0 8px;
+    padding: 28px 0 6px;
   }
-  .top-bar h1 { font-size: 26px; }
+  .top-bar h1 { font-size: 28px; }
   .logout-link { color: var(--sage); font-size: 14px; font-weight: 600; }
 
+  /* ---- Event card ---- */
   .event-card {
-    display: flex; justify-content: space-between; align-items: center;
-    gap: 16px;
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-soft);
+    margin-bottom: 14px;
+    overflow: hidden;
+    transition: box-shadow 0.25s ease;
+  }
+  .event-card.is-open { box-shadow: var(--shadow-lift); }
+
+  .event-summary {
+    display: flex; align-items: center; gap: 16px;
     padding: 20px 24px;
-    margin-bottom: 12px;
+    cursor: pointer; user-select: none;
+    transition: background 0.12s ease;
   }
-  .event-info h3 { font-size: 18px; margin-bottom: 4px; }
-  .event-meta { color: var(--sage); font-size: 14px; }
+  .event-summary:hover { background: #FEFCF8; }
+  .event-info { flex: 1; min-width: 0; }
+  .event-info h3 { font-size: 18px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .event-meta { color: var(--sage); font-size: 13px; }
+
   .status-badge {
-    display: inline-block;
-    font-size: 12px; font-weight: 700;
-    padding: 3px 10px; border-radius: 999px;
-    text-transform: uppercase; letter-spacing: 0.04em;
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 2px 9px; border-radius: 999px;
+    text-transform: uppercase; letter-spacing: 0.05em;
   }
-  .status-open { background: #E8F2E0; color: var(--sage); }
-  .status-closed { background: #F2E6D3; color: var(--terracotta-deep); }
-  .status-archived { background: #EEE; color: #888; }
+  .status-open    { background: #E8F2E0; color: #4A6B3A; }
+  .status-closed  { background: #F2E6D3; color: var(--terracotta-deep); }
+  .status-archived{ background: #EEE;   color: #888; }
 
-  .event-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
-  .icon-btn {
-    width: 40px; height: 40px;
-    border-radius: 50%;
-    border: 2px solid var(--cream-deep);
-    background: white;
+  .card-chevron { flex-shrink: 0; color: var(--sage); transition: transform 0.3s ease; }
+  .card-chevron svg { width: 22px; height: 22px; display: block; }
+  .event-card.is-open .card-chevron { transform: rotate(180deg); }
+
+  /* Expandable panel using CSS grid trick */
+  .event-detail {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.38s ease;
+  }
+  .event-card.is-open .event-detail { grid-template-rows: 1fr; }
+  .event-detail-inner { overflow: hidden; }
+
+  /* Detail sections */
+  .detail-body { border-top: 1px solid var(--cream-deep); padding: 0 24px; }
+  .detail-section { padding: 22px 0; }
+  .detail-section + .detail-section { border-top: 1px solid var(--cream-deep); }
+
+  .section-title {
+    font-family: var(--font-body);
+    font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--sage); margin-bottom: 14px;
+  }
+  .section-title.danger { color: #C0392B; }
+
+  /* Inputs & Textarea */
+  .field textarea {
+    width: 100%; padding: 12px 16px;
+    border: 2px solid var(--cream-deep); border-radius: 12px;
+    font-family: var(--font-body); font-size: 15px;
+    background: var(--white); color: var(--ink);
+    resize: vertical; line-height: 1.5;
+    transition: border-color 0.15s ease;
+  }
+  .field textarea:focus { outline: none; border-color: var(--terracotta); }
+
+  /* QR */
+  .qr-box { display: flex; justify-content: center; margin-bottom: 14px; }
+  .qr-box canvas, .qr-box img { border-radius: 10px; }
+  .link-box {
+    background: var(--cream-deep); border-radius: 10px;
+    padding: 11px 15px; font-size: 13px; word-break: break-all;
+    color: var(--ink); margin-bottom: 12px;
+  }
+
+  /* Toggle row */
+  .toggle-row { display: flex; align-items: center; gap: 16px; }
+  .toggle-row > div { flex: 1; }
+  .toggle-label { font-weight: 600; font-size: 15px; margin-bottom: 3px; }
+  .toggle-note { font-size: 13px; color: var(--sage); }
+
+  /* Photo strip */
+  .photo-strip {
+    display: flex; gap: 8px;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--terracotta) var(--cream-deep);
+  }
+  .photo-strip::-webkit-scrollbar { height: 4px; }
+  .photo-strip::-webkit-scrollbar-track { background: var(--cream-deep); border-radius: 2px; }
+  .photo-strip::-webkit-scrollbar-thumb { background: var(--terracotta); border-radius: 2px; }
+
+  .strip-thumb {
+    flex-shrink: 0;
+    width: 90px; height: 90px;
+    border-radius: 10px; overflow: hidden;
+    background: var(--cream-deep);
+    cursor: pointer; scroll-snap-align: start;
+    position: relative; transition: transform 0.15s ease;
+  }
+  .strip-thumb:hover { transform: scale(1.04); }
+  .strip-thumb img, .strip-thumb video {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .strip-thumb .video-badge {
+    position: absolute; bottom: 4px; right: 4px;
+    background: rgba(20,15,10,0.65); border-radius: 4px;
+    padding: 2px 5px; font-size: 10px; font-weight: 700; color: white;
+    pointer-events: none;
+  }
+  .strip-empty { color: var(--sage); font-size: 14px; padding: 8px 0; }
+  .count-badge {
+    background: var(--cream-deep); border-radius: 999px;
+    padding: 1px 8px; font-size: 11px; font-weight: 700;
+    color: var(--sage); margin-left: 6px; vertical-align: middle;
+  }
+
+  /* Delete */
+  .btn-danger {
+    background: transparent; color: #C0392B;
+    border: 2px solid #F2C9C5; padding: 13px 28px;
+    border-radius: 999px; font-family: var(--font-body);
+    font-weight: 600; font-size: 15px; cursor: pointer;
+    width: 100%; transition: background 0.15s ease;
+  }
+  .btn-danger:hover { background: #FDEAE8; }
+  .delete-confirm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .delete-confirm-label { flex: 1; font-size: 14px; font-weight: 600; color: #C0392B; min-width: 140px; }
+  .btn-confirm-del {
+    background: #C0392B; color: white; border: none;
+    padding: 10px 20px; border-radius: 999px;
+    font-family: var(--font-body); font-weight: 600; font-size: 14px;
     cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
   }
-  .icon-btn--danger { color: var(--terracotta-deep); border-color: #F2D6CC; }
-  .icon-btn--danger:hover { background: #FDEEE9; }
-  .icon-btn--confirm { color: #fff; background: var(--terracotta); border-color: var(--terracotta); }
-  .icon-btn--confirm:hover { background: var(--terracotta-deep); }
-  .confirm-label { font-size: 14px; font-weight: 600; color: var(--terracotta-deep); }
 
-  .modal-overlay {
+  /* Lightbox */
+  .lb {
     position: fixed; inset: 0;
-    background: rgba(20,15,10,0.5);
-    display: none;
-    align-items: center; justify-content: center;
-    z-index: 100;
-    padding: 20px;
+    background: rgba(20,15,10,0.96);
+    z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+  }
+  .lb.show { opacity: 1; visibility: visible; pointer-events: auto; }
+  .lb-media-wrap { display: flex; align-items: center; justify-content: center; max-width: 92vw; max-height: 88vh; }
+  .lb-media-wrap img, .lb-media-wrap video {
+    max-width: 100%; max-height: 88vh;
+    border-radius: 8px; object-fit: contain;
+    user-select: none; display: block;
+  }
+  .lb-close {
+    position: absolute; top: 18px; right: 20px;
+    background: none; border: none; color: white;
+    font-size: 34px; cursor: pointer; line-height: 1;
+    opacity: 0.8; transition: opacity 0.15s;
+  }
+  .lb-close:hover { opacity: 1; }
+  .lb-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,0.14); border: none; color: white;
+    width: 46px; height: 46px; border-radius: 50%;
+    cursor: pointer; font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    transition: background 0.15s ease;
+  }
+  .lb-nav:hover { background: rgba(255,255,255,0.28); }
+  .lb-prev { left: 16px; }
+  .lb-next { right: 16px; }
+  .lb-count {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,255,0.55); font-size: 13px; font-weight: 600;
+    pointer-events: none;
+  }
+
+  /* Create modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(20,15,10,0.5);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100; padding: 20px;
   }
   .modal-overlay.show { display: flex; }
   .modal-box { background: white; border-radius: var(--radius); padding: 32px; max-width: 420px; width: 100%; }
   .modal-box h2 { font-size: 22px; margin-bottom: 18px; }
 
-  #qr-canvas { display: flex; justify-content: center; margin: 20px 0; }
-  .link-box {
-    background: var(--cream-deep);
-    padding: 12px 16px;
-    border-radius: 10px;
-    font-size: 13px;
-    word-break: break-all;
-    margin-bottom: 16px;
-  }
-
   .empty-state { text-align: center; padding: 48px 24px; color: var(--sage); }
+  .save-feedback { color: var(--sage); font-size: 13px; font-weight: 600; text-align: center; margin-top: 8px; min-height: 18px; }
 </style>
 </head>
 <body>
 
-<div class="container" style="max-width: 760px">
+<div class="container" style="max-width: 720px">
   <div class="top-bar">
     <h1>I tuoi eventi</h1>
-    <a href="#" id="logout-link" class="logout-link">Esci</a>
+    <a href="#" id="logout-link" class="logout-link">Esci →</a>
   </div>
 
   <button class="btn btn-primary" id="new-event-btn" style="width:100%; margin: 12px 0 28px">
-    + Crea nuovo evento
+    + Nuovo evento
   </button>
 
   <div id="events-list"></div>
@@ -96,31 +232,28 @@
     <h2>Nuovo evento</h2>
     <form id="create-form">
       <div class="field">
-        <label for="event-name">Nome evento</label>
-        <input type="text" id="event-name" placeholder="Es. Compleanno di Giulia" required>
+        <label for="new-name">Nome evento</label>
+        <input type="text" id="new-name" placeholder="Es. Compleanno di Giulia" required>
       </div>
       <div class="field">
-        <label for="event-date">Data evento</label>
-        <input type="date" id="event-date" required>
+        <label for="new-date">Data evento</label>
+        <input type="date" id="new-date" required>
       </div>
       <div class="row" style="margin-top: 20px">
         <button type="button" class="btn btn-ghost" id="cancel-create" style="flex:1">Annulla</button>
-        <button type="submit" class="btn btn-primary" style="flex:1">Crea evento</button>
+        <button type="submit" class="btn btn-primary" id="create-submit" style="flex:1">Crea evento</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- Modale: QR code generato -->
-<div class="modal-overlay" id="qr-modal">
-  <div class="modal-box text-center">
-    <h2 id="qr-event-name">Evento creato!</h2>
-    <p style="color:var(--sage); margin-bottom: 8px">Condividi questo QR o il link con gli invitati</p>
-    <div id="qr-canvas"></div>
-    <div class="link-box" id="qr-link"></div>
-    <button class="btn btn-ghost" id="download-qr" style="width:100%; margin-bottom:10px">Scarica QR (PNG)</button>
-    <button class="btn btn-primary" id="close-qr" style="width:100%">Fatto</button>
-  </div>
+<!-- Lightbox foto -->
+<div class="lb" id="lb" role="dialog" aria-modal="true">
+  <button class="lb-close" id="lb-close" aria-label="Chiudi">×</button>
+  <button class="lb-nav lb-prev" id="lb-prev" aria-label="Precedente">‹</button>
+  <div class="lb-media-wrap" id="lb-media"></div>
+  <button class="lb-nav lb-next" id="lb-next" aria-label="Successivo">›</button>
+  <div class="lb-count" id="lb-count"></div>
 </div>
 
 <script src="/js/dashboard.js"></script>
