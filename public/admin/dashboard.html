@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>I tuoi eventi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -16,24 +16,19 @@
   .top-bar h1 { font-size: 28px; }
   .logout-link { color: var(--sage); font-size: 14px; font-weight: 600; }
 
-  /* ---- Event card ---- */
+  /* ---- Event card (sola riga cliccabile) ---- */
   .event-card {
     background: var(--white);
     border-radius: var(--radius);
     box-shadow: var(--shadow-soft);
     margin-bottom: 14px;
-    overflow: hidden;
-    transition: box-shadow 0.25s ease;
-  }
-  .event-card.is-open { box-shadow: var(--shadow-lift); }
-
-  .event-summary {
     display: flex; align-items: center; gap: 16px;
     padding: 20px 24px;
     cursor: pointer; user-select: none;
-    transition: background 0.12s ease;
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
   }
-  .event-summary:hover { background: #FEFCF8; }
+  .event-card:hover { box-shadow: var(--shadow-lift); transform: translateY(-1px); }
+  .event-card:active { transform: scale(0.99); }
   .event-info { flex: 1; min-width: 0; }
   .event-info h3 { font-size: 18px; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .event-meta { color: var(--sage); font-size: 13px; }
@@ -47,24 +42,65 @@
   .status-closed  { background: #F2E6D3; color: var(--terracotta-deep); }
   .status-archived{ background: #EEE;   color: #888; }
 
-  .card-chevron { flex-shrink: 0; color: var(--sage); transition: transform 0.3s ease; }
-  .card-chevron svg { width: 22px; height: 22px; display: block; }
-  .event-card.is-open .card-chevron { transform: rotate(180deg); }
+  .card-arrow { flex-shrink: 0; color: var(--sage); }
+  .card-arrow svg { width: 22px; height: 22px; display: block; }
 
-  /* Expandable panel using CSS grid trick */
-  .event-detail {
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows 0.38s ease;
+  /* ---- Finestre modali (overlay) ---- */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(20,15,10,0.55);
+    -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; padding: 20px;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.22s ease, visibility 0.22s ease;
   }
-  .event-card.is-open .event-detail { grid-template-rows: 1fr; }
-  .event-detail-inner { overflow: hidden; }
+  .modal-overlay.show { opacity: 1; visibility: visible; pointer-events: auto; }
 
-  /* Detail sections */
-  .detail-body { border-top: 1px solid var(--cream-deep); padding: 0 24px; }
-  .detail-section { padding: 22px 0; }
+  .modal-box {
+    background: var(--white); border-radius: var(--radius);
+    padding: 30px; max-width: 440px; width: 100%;
+    box-shadow: var(--shadow-lift);
+    transform: translateY(14px) scale(0.98);
+    transition: transform 0.25s ease;
+  }
+  .modal-overlay.show .modal-box { transform: none; }
+  .modal-box h2 { font-size: 22px; margin-bottom: 18px; }
+
+  /* Finestra dettaglio: più alta, con scroll interno pulito */
+  .detail-box {
+    max-width: 480px; padding: 0;
+    max-height: min(86vh, 760px);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .detail-head {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 24px 26px 16px;
+    border-bottom: 1px solid var(--cream-deep);
+    flex-shrink: 0;
+  }
+  .detail-head-info { flex: 1; min-width: 0; }
+  .detail-head h2 { font-size: 21px; margin-bottom: 6px; word-break: break-word; }
+  .detail-close {
+    flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+    border: none; background: var(--cream-deep); color: var(--ink);
+    font-size: 20px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s ease;
+  }
+  .detail-close:hover { background: #E6D6BE; }
+
+  /* Corpo scorrevole — scroll pulito su mobile */
+  .detail-scroll {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding: 0 26px 26px;
+  }
+
+  .detail-section { padding: 20px 0; }
   .detail-section + .detail-section { border-top: 1px solid var(--cream-deep); }
-
   .section-title {
     font-family: var(--font-body);
     font-size: 11px; font-weight: 700;
@@ -73,7 +109,6 @@
   }
   .section-title.danger { color: #C0392B; }
 
-  /* Inputs & Textarea */
   .field textarea {
     width: 100%; padding: 12px 16px;
     border: 2px solid var(--cream-deep); border-radius: 12px;
@@ -84,7 +119,6 @@
   }
   .field textarea:focus { outline: none; border-color: var(--terracotta); }
 
-  /* QR */
   .qr-box { display: flex; justify-content: center; margin-bottom: 14px; }
   .qr-box canvas, .qr-box img { border-radius: 10px; }
   .link-box {
@@ -93,33 +127,31 @@
     color: var(--ink); margin-bottom: 12px;
   }
 
-  /* Toggle row */
   .toggle-row { display: flex; align-items: center; gap: 16px; }
   .toggle-row > div { flex: 1; }
   .toggle-label { font-weight: 600; font-size: 15px; margin-bottom: 3px; }
   .toggle-note { font-size: 13px; color: var(--sage); }
 
-  /* Photo strip */
+  /* Strip foto — scroll orizzontale pulito */
   .photo-strip {
     display: flex; gap: 8px;
     overflow-x: auto; overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x mandatory;
-    padding-bottom: 4px;
+    overscroll-behavior-x: contain;
+    padding-bottom: 6px;
     scrollbar-width: thin;
     scrollbar-color: var(--terracotta) var(--cream-deep);
   }
-  .photo-strip::-webkit-scrollbar { height: 4px; }
-  .photo-strip::-webkit-scrollbar-track { background: var(--cream-deep); border-radius: 2px; }
-  .photo-strip::-webkit-scrollbar-thumb { background: var(--terracotta); border-radius: 2px; }
-
+  .photo-strip::-webkit-scrollbar { height: 5px; }
+  .photo-strip::-webkit-scrollbar-track { background: var(--cream-deep); border-radius: 3px; }
+  .photo-strip::-webkit-scrollbar-thumb { background: var(--terracotta); border-radius: 3px; }
   .strip-thumb {
-    flex-shrink: 0;
-    width: 90px; height: 90px;
+    flex: 0 0 auto;
+    width: 92px; height: 92px;
     border-radius: 10px; overflow: hidden;
     background: var(--cream-deep);
-    cursor: pointer; scroll-snap-align: start;
-    position: relative; transition: transform 0.15s ease;
+    cursor: pointer; position: relative;
+    transition: transform 0.15s ease;
   }
   .strip-thumb:hover { transform: scale(1.04); }
   .strip-thumb img, .strip-thumb video {
@@ -128,17 +160,15 @@
   .strip-thumb .video-badge {
     position: absolute; bottom: 4px; right: 4px;
     background: rgba(20,15,10,0.65); border-radius: 4px;
-    padding: 2px 5px; font-size: 10px; font-weight: 700; color: white;
-    pointer-events: none;
+    padding: 1px 5px; font-size: 11px; color: white; pointer-events: none;
   }
-  .strip-empty { color: var(--sage); font-size: 14px; padding: 8px 0; }
+  .strip-empty { color: var(--sage); font-size: 14px; padding: 6px 0; }
   .count-badge {
     background: var(--cream-deep); border-radius: 999px;
     padding: 1px 8px; font-size: 11px; font-weight: 700;
     color: var(--sage); margin-left: 6px; vertical-align: middle;
   }
 
-  /* Delete */
   .btn-danger {
     background: transparent; color: #C0392B;
     border: 2px solid #F2C9C5; padding: 13px 28px;
@@ -148,15 +178,15 @@
   }
   .btn-danger:hover { background: #FDEAE8; }
   .delete-confirm { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .delete-confirm-label { flex: 1; font-size: 14px; font-weight: 600; color: #C0392B; min-width: 140px; }
+  .delete-confirm-label { flex: 1; font-size: 14px; font-weight: 600; color: #C0392B; min-width: 130px; }
   .btn-confirm-del {
     background: #C0392B; color: white; border: none;
-    padding: 10px 20px; border-radius: 999px;
-    font-family: var(--font-body); font-weight: 600; font-size: 14px;
-    cursor: pointer;
+    padding: 11px 20px; border-radius: 999px;
+    font-family: var(--font-body); font-weight: 600; font-size: 14px; cursor: pointer;
   }
+  .save-feedback { color: var(--sage); font-size: 13px; font-weight: 600; text-align: center; margin-top: 8px; min-height: 16px; }
 
-  /* Lightbox */
+  /* ---- Lightbox foto ---- */
   .lb {
     position: fixed; inset: 0;
     background: rgba(20,15,10,0.96);
@@ -168,47 +198,28 @@
   .lb.show { opacity: 1; visibility: visible; pointer-events: auto; }
   .lb-media-wrap { display: flex; align-items: center; justify-content: center; max-width: 92vw; max-height: 88vh; }
   .lb-media-wrap img, .lb-media-wrap video {
-    max-width: 100%; max-height: 88vh;
-    border-radius: 8px; object-fit: contain;
+    max-width: 100%; max-height: 88vh; border-radius: 8px; object-fit: contain;
     user-select: none; display: block;
   }
   .lb-close {
     position: absolute; top: 18px; right: 20px;
     background: none; border: none; color: white;
-    font-size: 34px; cursor: pointer; line-height: 1;
-    opacity: 0.8; transition: opacity 0.15s;
+    font-size: 34px; cursor: pointer; line-height: 1; opacity: 0.85;
   }
-  .lb-close:hover { opacity: 1; }
   .lb-nav {
     position: absolute; top: 50%; transform: translateY(-50%);
     background: rgba(255,255,255,0.14); border: none; color: white;
-    width: 46px; height: 46px; border-radius: 50%;
-    cursor: pointer; font-size: 22px;
+    width: 46px; height: 46px; border-radius: 50%; cursor: pointer; font-size: 22px;
     display: flex; align-items: center; justify-content: center;
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-    transition: background 0.15s ease;
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   }
-  .lb-nav:hover { background: rgba(255,255,255,0.28); }
-  .lb-prev { left: 16px; }
-  .lb-next { right: 16px; }
+  .lb-prev { left: 16px; } .lb-next { right: 16px; }
   .lb-count {
     position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-    color: rgba(255,255,255,0.55); font-size: 13px; font-weight: 600;
-    pointer-events: none;
+    color: rgba(255,255,255,0.55); font-size: 13px; font-weight: 600; pointer-events: none;
   }
-
-  /* Create modal */
-  .modal-overlay {
-    position: fixed; inset: 0; background: rgba(20,15,10,0.5);
-    display: none; align-items: center; justify-content: center;
-    z-index: 100; padding: 20px;
-  }
-  .modal-overlay.show { display: flex; }
-  .modal-box { background: white; border-radius: var(--radius); padding: 32px; max-width: 420px; width: 100%; }
-  .modal-box h2 { font-size: 22px; margin-bottom: 18px; }
 
   .empty-state { text-align: center; padding: 48px 24px; color: var(--sage); }
-  .save-feedback { color: var(--sage); font-size: 13px; font-weight: 600; text-align: center; margin-top: 8px; min-height: 18px; }
 </style>
 </head>
 <body>
@@ -226,7 +237,7 @@
   <div id="events-list"></div>
 </div>
 
-<!-- Modale: crea nuovo evento -->
+<!-- Finestra: crea nuovo evento -->
 <div class="modal-overlay" id="create-modal">
   <div class="modal-box">
     <h2>Nuovo evento</h2>
@@ -244,6 +255,22 @@
         <button type="submit" class="btn btn-primary" id="create-submit" style="flex:1">Crea evento</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Finestra: dettaglio evento -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal-box detail-box">
+    <div class="detail-head">
+      <div class="detail-head-info">
+        <h2 id="detail-name">Evento</h2>
+        <span class="status-badge" id="detail-status">Aperto</span>
+      </div>
+      <button class="detail-close" id="detail-close" aria-label="Chiudi">×</button>
+    </div>
+    <div class="detail-scroll" id="detail-scroll">
+      <!-- Popolato via JS -->
+    </div>
   </div>
 </div>
 

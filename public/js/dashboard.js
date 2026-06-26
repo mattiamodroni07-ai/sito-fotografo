@@ -1,46 +1,40 @@
 const STATUS_LABELS = { open: 'Aperto', closed: 'Chiuso', archived: 'Archiviato' };
 
 let allEvents = [];
-let openCardId = null;
-const qrGenerated = new Set();
-const photosLoaded = new Set();
+let currentEvent = null;   // evento aperto nella finestra dettaglio
 
 // Lightbox
 let lbPhotos = [];
 let lbIdx = 0;
 let lbTouchX = 0;
 
+const detailModal = document.getElementById('detail-modal');
+const detailScroll = document.getElementById('detail-scroll');
+
 function formatDate(d) {
   return new Date(d).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
 }
-
 function escHtml(s) {
   return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ---- Data loading ----
+// ---- Caricamento eventi ----
 
-async function loadEvents(keepOpenId) {
+async function loadEvents(openId) {
   const list = document.getElementById('events-list');
   try {
     const res = await fetch('/api/admin/events');
     if (res.status === 401) return (window.location.href = '/admin/login.html');
     allEvents = await res.json();
-    const restoreId = keepOpenId ?? null;
-    openCardId = null;
-    qrGenerated.clear();
-    photosLoaded.clear();
     renderEvents();
-    if (restoreId) {
-      const card = document.getElementById(`card-${restoreId}`);
-      if (card) openCard(card, restoreId);
+    if (openId) {
+      const ev = allEvents.find(e => e.id === openId);
+      if (ev) openDetail(ev);
     }
   } catch {
     list.innerHTML = '<div class="empty-state">Impossibile caricare gli eventi. Riprova più tardi.</div>';
   }
 }
-
-// ---- Rendering ----
 
 function renderEvents() {
   const list = document.getElementById('events-list');
@@ -49,37 +43,12 @@ function renderEvents() {
     return;
   }
   list.innerHTML = '';
-  allEvents.forEach(ev => list.appendChild(buildCard(ev)));
-}
-
-function renderUploadSection(ev) {
-  if (ev.status === 'archived') {
-    return `<p style="font-size:14px;color:var(--sage)">Evento archiviato — i file sono stati rimossi.</p>`;
-  }
-  const isOpen = ev.status === 'open';
-  return `
-    <div class="toggle-row">
-      <div>
-        <div class="toggle-label">Stato: <strong>${isOpen ? 'Aperti' : 'Chiusi'}</strong></div>
-        <div class="toggle-note">${isOpen ? 'Gli ospiti possono caricare foto e video' : 'Nuovi caricamenti disabilitati'}</div>
-      </div>
-      <button class="btn ${isOpen ? 'btn-ghost' : 'btn-primary'}" style="flex-shrink:0; padding:11px 22px"
-        data-action="toggle-upload" data-id="${ev.id}" data-status="${ev.status}">
-        ${isOpen ? 'Chiudi' : 'Riapri'}
-      </button>
-    </div>`;
-}
-
-function buildCard(ev) {
-  const card = document.createElement('div');
-  card.className = 'event-card';
-  card.id = `card-${ev.id}`;
-  const count = ev.media_count || 0;
-  const archived = ev.status === 'archived';
-  const url = `${location.origin}/?e=${ev.id}`;
-
-  card.innerHTML = `
-    <div class="event-summary" data-action="toggle-card" data-id="${ev.id}">
+  allEvents.forEach(ev => {
+    const count = ev.media_count || 0;
+    const card = document.createElement('div');
+    card.className = 'event-card';
+    card.dataset.id = ev.id;
+    card.innerHTML = `
       <div class="event-info">
         <h3>${escHtml(ev.name)}</h3>
         <div class="event-meta">
@@ -87,135 +56,225 @@ function buildCard(ev) {
           <span class="status-badge status-${ev.status}">${STATUS_LABELS[ev.status]}</span>
         </div>
       </div>
-      <div class="card-chevron">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
+      <div class="card-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>`;
+    card.addEventListener('click', () => openDetail(ev));
+    list.appendChild(card);
+  });
+}
+
+// ---- Finestra dettaglio ----
+
+function uploadSectionHtml(ev) {
+  if (ev.status === 'archived')
+    return `<p style="font-size:14px;color:var(--sage)">Evento archiviato — i file sono stati rimossi.</p>`;
+  const isOpen = ev.status === 'open';
+  return `
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">Stato: <strong>${isOpen ? 'Aperti' : 'Chiusi'}</strong></div>
+        <div class="toggle-note">${isOpen ? 'Gli ospiti possono caricare foto e video' : 'Nuovi caricamenti disabilitati'}</div>
       </div>
+      <button class="btn ${isOpen ? 'btn-ghost' : 'btn-primary'}" id="toggle-upload" style="flex-shrink:0; padding:11px 22px">
+        ${isOpen ? 'Chiudi' : 'Riapri'}
+      </button>
+    </div>`;
+}
+
+function openDetail(ev) {
+  currentEvent = ev;
+  const archived = ev.status === 'archived';
+  const url = `${location.origin}/?e=${ev.id}`;
+  const count = ev.media_count || 0;
+
+  document.getElementById('detail-name').textContent = ev.name;
+  const badge = document.getElementById('detail-status');
+  badge.className = `status-badge status-${ev.status}`;
+  badge.textContent = STATUS_LABELS[ev.status];
+
+  detailScroll.innerHTML = `
+    <div class="detail-section">
+      <div class="section-title">Informazioni evento</div>
+      <form id="edit-form">
+        <div class="field">
+          <label>Nome</label>
+          <input type="text" name="name" value="${escHtml(ev.name)}" required ${archived ? 'disabled' : ''}>
+        </div>
+        <div class="field">
+          <label>Data</label>
+          <input type="date" name="event_date" value="${ev.event_date}" required ${archived ? 'disabled' : ''}>
+        </div>
+        <div class="field">
+          <label>Note private (opzionale)</label>
+          <textarea name="description" rows="2" placeholder="Es. location, numero ospiti…" ${archived ? 'disabled' : ''}>${escHtml(ev.description || '')}</textarea>
+        </div>
+        ${!archived ? `<button type="submit" class="btn btn-primary" style="width:100%">Salva modifiche</button>
+        <div class="save-feedback" id="save-fb"></div>` : ''}
+      </form>
     </div>
 
-    <div class="event-detail">
-      <div class="event-detail-inner">
-        <div class="detail-body">
+    <div class="detail-section">
+      <div class="section-title">QR Code &amp; link ospiti</div>
+      <div class="qr-box" id="qr-box"></div>
+      <div class="link-box">${url}</div>
+      <button class="btn btn-ghost" id="download-qr" style="width:100%">Scarica QR (PNG)</button>
+    </div>
 
-          <!-- Modifica informazioni -->
-          <div class="detail-section">
-            <div class="section-title">Informazioni evento</div>
-            <form data-action="save-edit" data-id="${ev.id}">
-              <div class="field">
-                <label>Nome</label>
-                <input type="text" name="name" value="${escHtml(ev.name)}" required ${archived ? 'disabled' : ''}>
-              </div>
-              <div class="field">
-                <label>Data</label>
-                <input type="date" name="event_date" value="${ev.event_date}" required ${archived ? 'disabled' : ''}>
-              </div>
-              <div class="field">
-                <label>Note private (opzionale)</label>
-                <textarea name="description" rows="2" placeholder="Es. location, numero ospiti…" ${archived ? 'disabled' : ''}>${escHtml(ev.description || '')}</textarea>
-              </div>
-              ${!archived ? `
-                <button type="submit" class="btn btn-primary" style="width:100%">Salva modifiche</button>
-                <div class="save-feedback" id="save-fb-${ev.id}"></div>
-              ` : ''}
-            </form>
-          </div>
+    <div class="detail-section" id="upload-section">
+      <div class="section-title">Caricamenti ospiti</div>
+      ${uploadSectionHtml(ev)}
+    </div>
 
-          <!-- QR code e link -->
-          <div class="detail-section">
-            <div class="section-title">QR Code &amp; link ospiti</div>
-            <div class="qr-box" id="qr-${ev.id}"></div>
-            <div class="link-box">${url}</div>
-            <button class="btn btn-ghost" style="width:100%" data-action="download-qr" data-id="${ev.id}">
-              Scarica QR (PNG)
-            </button>
-          </div>
+    <div class="detail-section">
+      <div class="section-title">Foto e video <span class="count-badge">${count}</span></div>
+      <div class="photo-strip" id="photo-strip"><div class="strip-empty">Caricamento…</div></div>
+    </div>
 
-          <!-- Caricamenti -->
-          <div class="detail-section" id="upload-section-${ev.id}">
-            <div class="section-title">Caricamenti ospiti</div>
-            ${renderUploadSection(ev)}
-          </div>
-
-          <!-- Foto e video -->
-          <div class="detail-section">
-            <div class="section-title">
-              Foto e video
-              <span class="count-badge" id="count-badge-${ev.id}">${count}</span>
-            </div>
-            <div class="photo-strip" id="strip-${ev.id}">
-              <div class="strip-empty">Caricamento…</div>
-            </div>
-          </div>
-
-          <!-- Elimina -->
-          <div class="detail-section">
-            <div class="section-title danger">Zona pericolosa</div>
-            <div id="delete-area-${ev.id}">
-              <button class="btn-danger" data-action="delete-event" data-id="${ev.id}">
-                Elimina evento e tutte le foto
-              </button>
-            </div>
-          </div>
-
-        </div>
+    <div class="detail-section">
+      <div class="section-title danger">Zona pericolosa</div>
+      <div id="delete-area">
+        <button class="btn-danger" id="delete-event">Elimina evento e tutte le foto</button>
       </div>
     </div>`;
 
-  return card;
+  // QR
+  const qrBox = document.getElementById('qr-box');
+  new QRCode(qrBox, { text: url, width: 180, height: 180, colorDark: '#2B2118', colorLight: '#FFFFFF' });
+
+  wireDetailHandlers(ev);
+  loadPhotoStrip(ev.id);
+
+  detailScroll.scrollTop = 0;
+  detailModal.classList.add('show');
+  document.body.style.overflow = 'hidden';
 }
 
-// ---- Card open/close ----
+function closeDetail() {
+  detailModal.classList.remove('show');
+  detailScroll.innerHTML = '';
+  currentEvent = null;
+  if (!document.getElementById('lb').classList.contains('show')) document.body.style.overflow = '';
+}
 
-function openCard(card, id) {
-  card.classList.add('is-open');
-  openCardId = id;
-
-  if (!qrGenerated.has(id)) {
-    qrGenerated.add(id);
-    const qrEl = document.getElementById(`qr-${id}`);
-    if (qrEl) {
-      new QRCode(qrEl, {
-        text: `${location.origin}/?e=${id}`,
-        width: 180, height: 180,
-        colorDark: '#2B2118', colorLight: '#FFFFFF'
+function wireDetailHandlers(ev) {
+  // Salva modifiche
+  const form = document.getElementById('edit-form');
+  if (form) form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const data = {
+      name: form.elements['name'].value.trim(),
+      event_date: form.elements['event_date'].value,
+      description: form.elements['description'].value
+    };
+    const btn = form.querySelector('button[type="submit"]');
+    const fb = document.getElementById('save-fb');
+    btn.disabled = true; btn.textContent = 'Salvataggio…';
+    try {
+      const res = await fetch(`/api/admin/events/${ev.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
       });
+      if (!res.ok) throw new Error();
+      Object.assign(ev, data);
+      document.getElementById('detail-name').textContent = data.name;
+      btn.textContent = '✓ Salvato!';
+      if (fb) fb.textContent = '';
+      renderEvents();
+      setTimeout(() => { btn.textContent = 'Salva modifiche'; btn.disabled = false; }, 1800);
+    } catch {
+      if (fb) fb.textContent = 'Errore durante il salvataggio. Riprova.';
+      btn.textContent = 'Salva modifiche'; btn.disabled = false;
     }
-  }
+  });
 
-  if (!photosLoaded.has(id)) {
-    photosLoaded.add(id);
-    loadPhotoStrip(id);
-  }
+  // Scarica QR
+  const dlQr = document.getElementById('download-qr');
+  if (dlQr) dlQr.addEventListener('click', () => {
+    const box = document.getElementById('qr-box');
+    const canvas = box.querySelector('canvas');
+    const img = box.querySelector('img');
+    const dataUrl = canvas ? canvas.toDataURL('image/png') : (img ? img.src : null);
+    if (!dataUrl) return;
+    const a = document.createElement('a');
+    a.href = dataUrl; a.download = `qr-${ev.id}.png`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  });
+
+  // Apri/chiudi caricamenti
+  const toggleBtn = document.getElementById('toggle-upload');
+  if (toggleBtn) toggleBtn.addEventListener('click', async () => {
+    const next = ev.status === 'open' ? 'closed' : 'open';
+    toggleBtn.disabled = true;
+    try {
+      const res = await fetch(`/api/admin/events/${ev.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: next })
+      });
+      if (!res.ok) throw new Error();
+      ev.status = next;
+      const badge = document.getElementById('detail-status');
+      badge.className = `status-badge status-${next}`;
+      badge.textContent = STATUS_LABELS[next];
+      const section = document.getElementById('upload-section');
+      section.innerHTML = `<div class="section-title">Caricamenti ospiti</div>${uploadSectionHtml(ev)}`;
+      wireDetailHandlers(ev); // riaggancia il nuovo bottone toggle
+      renderEvents();
+    } catch {
+      alert('Impossibile aggiornare lo stato. Riprova.');
+      toggleBtn.disabled = false;
+    }
+  });
+
+  // Elimina evento → conferma inline
+  const delBtn = document.getElementById('delete-event');
+  if (delBtn) delBtn.addEventListener('click', () => {
+    const area = document.getElementById('delete-area');
+    area.innerHTML = `
+      <div class="delete-confirm">
+        <span class="delete-confirm-label">Sicuro? Azione irreversibile.</span>
+        <button class="btn btn-ghost" id="cancel-del" style="padding:10px 18px">No</button>
+        <button class="btn-confirm-del" id="confirm-del">Sì, elimina</button>
+      </div>`;
+    document.getElementById('cancel-del').addEventListener('click', () => {
+      area.innerHTML = `<button class="btn-danger" id="delete-event">Elimina evento e tutte le foto</button>`;
+      wireDetailHandlers(ev);
+    });
+    document.getElementById('confirm-del').addEventListener('click', async function () {
+      this.disabled = true; this.textContent = '…';
+      try {
+        const res = await fetch(`/api/admin/events/${ev.id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        allEvents = allEvents.filter(e => e.id !== ev.id);
+        closeDetail();
+        renderEvents();
+      } catch {
+        alert("Impossibile eliminare l'evento. Riprova.");
+        this.disabled = false; this.textContent = 'Sì, elimina';
+      }
+    });
+  });
 }
 
-function closeCard(card) {
-  card.classList.remove('is-open');
-  openCardId = null;
-}
-
-// ---- Photo strip ----
+// ---- Strip foto ----
 
 async function loadPhotoStrip(eventId) {
-  const strip = document.getElementById(`strip-${eventId}`);
+  const strip = document.getElementById('photo-strip');
   if (!strip) return;
   try {
     const res = await fetch(`/api/events/${eventId}/media`);
     const items = await res.json();
-    if (!items.length) {
-      strip.innerHTML = '<div class="strip-empty">Nessuna foto ancora.</div>';
-      return;
-    }
+    if (!strip.isConnected) return;
+    if (!items.length) { strip.innerHTML = '<div class="strip-empty">Nessuna foto ancora.</div>'; return; }
     strip.innerHTML = '';
     items.forEach((item, i) => {
       const thumb = document.createElement('div');
       thumb.className = 'strip-thumb';
       if (item.type === 'video') {
-        const vid = document.createElement('video');
-        vid.src = item.url; vid.muted = true; vid.preload = 'metadata';
-        const badge = document.createElement('span');
-        badge.className = 'video-badge'; badge.textContent = '▶';
-        thumb.appendChild(vid); thumb.appendChild(badge);
+        const v = document.createElement('video');
+        v.src = item.url; v.muted = true; v.preload = 'metadata';
+        const b = document.createElement('span'); b.className = 'video-badge'; b.textContent = '▶';
+        thumb.appendChild(v); thumb.appendChild(b);
       } else {
         const img = document.createElement('img');
         img.src = item.url; img.loading = 'lazy'; img.alt = '';
@@ -225,7 +284,7 @@ async function loadPhotoStrip(eventId) {
       strip.appendChild(thumb);
     });
   } catch {
-    strip.innerHTML = '<div class="strip-empty">Impossibile caricare le foto.</div>';
+    if (strip.isConnected) strip.innerHTML = '<div class="strip-empty">Impossibile caricare le foto.</div>';
   }
 }
 
@@ -240,13 +299,11 @@ function openLightbox(photos, idx) {
   lb.classList.add('show');
   document.body.style.overflow = 'hidden';
 }
-
 function closeLightbox() {
   lb.classList.remove('show');
   lbMediaEl.innerHTML = '';
-  document.body.style.overflow = '';
+  if (!detailModal.classList.contains('show')) document.body.style.overflow = '';
 }
-
 function showLbMedia() {
   const item = lbPhotos[lbIdx];
   lbMediaEl.innerHTML = item.type === 'video'
@@ -256,7 +313,6 @@ function showLbMedia() {
   document.getElementById('lb-prev').style.visibility = lbIdx > 0 ? 'visible' : 'hidden';
   document.getElementById('lb-next').style.visibility = lbIdx < lbPhotos.length - 1 ? 'visible' : 'hidden';
 }
-
 function prevPhoto() { if (lbIdx > 0) { lbIdx--; showLbMedia(); } }
 function nextPhoto() { if (lbIdx < lbPhotos.length - 1) { lbIdx++; showLbMedia(); } }
 
@@ -264,188 +320,30 @@ document.getElementById('lb-close').addEventListener('click', closeLightbox);
 lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
 document.getElementById('lb-prev').addEventListener('click', e => { e.stopPropagation(); prevPhoto(); });
 document.getElementById('lb-next').addEventListener('click', e => { e.stopPropagation(); nextPhoto(); });
-
 lb.addEventListener('touchstart', e => { lbTouchX = e.touches[0].clientX; }, { passive: true });
 lb.addEventListener('touchend', e => {
   const dx = e.changedTouches[0].clientX - lbTouchX;
-  if (dx > 55) prevPhoto();
-  else if (dx < -55) nextPhoto();
+  if (dx > 55) prevPhoto(); else if (dx < -55) nextPhoto();
 });
-
 document.addEventListener('keydown', e => {
-  if (!lb.classList.contains('show')) return;
-  if (e.key === 'ArrowLeft') prevPhoto();
-  else if (e.key === 'ArrowRight') nextPhoto();
-  else if (e.key === 'Escape') closeLightbox();
-});
-
-// ---- Event delegation: clicks ----
-
-document.getElementById('events-list').addEventListener('click', async e => {
-
-  // Toggle card open/close
-  const summaryEl = e.target.closest('[data-action="toggle-card"]');
-  if (summaryEl) {
-    const id = summaryEl.dataset.id;
-    const card = document.getElementById(`card-${id}`);
-    if (card.classList.contains('is-open')) {
-      closeCard(card);
-    } else {
-      if (openCardId) {
-        const prev = document.getElementById(`card-${openCardId}`);
-        if (prev) closeCard(prev);
-      }
-      openCard(card, id);
-    }
-    return;
-  }
-
-  // Download QR
-  const dlQrBtn = e.target.closest('[data-action="download-qr"]');
-  if (dlQrBtn) {
-    const id = dlQrBtn.dataset.id;
-    const container = document.getElementById(`qr-${id}`);
-    const canvas = container?.querySelector('canvas');
-    const img = container?.querySelector('img');
-    const dataUrl = canvas ? canvas.toDataURL('image/png') : (img?.src ?? null);
-    if (!dataUrl) return;
-    const a = document.createElement('a');
-    a.href = dataUrl; a.download = `qr-${id}.png`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    return;
-  }
-
-  // Toggle upload open/closed
-  const toggleBtn = e.target.closest('[data-action="toggle-upload"]');
-  if (toggleBtn) {
-    const id = toggleBtn.dataset.id;
-    const nextStatus = toggleBtn.dataset.status === 'open' ? 'closed' : 'open';
-    toggleBtn.disabled = true;
-    try {
-      const res = await fetch(`/api/admin/events/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus })
-      });
-      if (!res.ok) throw new Error();
-      const ev = allEvents.find(e => e.id === id);
-      if (ev) ev.status = nextStatus;
-      // Update upload section in place
-      const section = document.getElementById(`upload-section-${id}`);
-      if (section) {
-        section.innerHTML = `<div class="section-title">Caricamenti ospiti</div>${renderUploadSection(ev)}`;
-      }
-      // Update header badge
-      const card = document.getElementById(`card-${id}`);
-      const badge = card?.querySelector('.status-badge');
-      if (badge) { badge.className = `status-badge status-${nextStatus}`; badge.textContent = STATUS_LABELS[nextStatus]; }
-    } catch {
-      alert('Impossibile aggiornare lo stato. Riprova.');
-      toggleBtn.disabled = false;
-    }
-    return;
-  }
-
-  // Delete — show inline confirm
-  const delBtn = e.target.closest('[data-action="delete-event"]');
-  if (delBtn) {
-    const id = delBtn.dataset.id;
-    document.getElementById(`delete-area-${id}`).innerHTML = `
-      <div class="delete-confirm">
-        <span class="delete-confirm-label">Sicuro? Questa azione è irreversibile.</span>
-        <button class="btn btn-ghost" data-action="cancel-delete" data-id="${id}" style="padding:10px 18px">No</button>
-        <button class="btn-confirm-del" data-action="confirm-delete" data-id="${id}">Sì, elimina</button>
-      </div>`;
-    return;
-  }
-
-  // Cancel delete
-  const cancelDel = e.target.closest('[data-action="cancel-delete"]');
-  if (cancelDel) {
-    const id = cancelDel.dataset.id;
-    document.getElementById(`delete-area-${id}`).innerHTML =
-      `<button class="btn-danger" data-action="delete-event" data-id="${id}">Elimina evento e tutte le foto</button>`;
-    return;
-  }
-
-  // Confirm delete
-  const confirmDel = e.target.closest('[data-action="confirm-delete"]');
-  if (confirmDel) {
-    const id = confirmDel.dataset.id;
-    confirmDel.disabled = true; confirmDel.textContent = '…';
-    try {
-      const res = await fetch(`/api/admin/events/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error();
-      allEvents = allEvents.filter(e => e.id !== id);
-      if (openCardId === id) openCardId = null;
-      const card = document.getElementById(`card-${id}`);
-      if (card) {
-        card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-        card.style.opacity = '0'; card.style.transform = 'scale(0.97)';
-        setTimeout(() => { card.remove(); if (!allEvents.length) renderEvents(); }, 300);
-      }
-    } catch {
-      alert("Impossibile eliminare l'evento. Riprova.");
-      loadEvents(openCardId);
-    }
-    return;
+  if (lb.classList.contains('show')) {
+    if (e.key === 'ArrowLeft') prevPhoto();
+    else if (e.key === 'ArrowRight') nextPhoto();
+    else if (e.key === 'Escape') closeLightbox();
+  } else if (detailModal.classList.contains('show') && e.key === 'Escape') {
+    closeDetail();
   }
 });
 
-// ---- Event delegation: form submit ----
+// ---- Chiusura finestra dettaglio ----
+document.getElementById('detail-close').addEventListener('click', closeDetail);
+detailModal.addEventListener('click', e => { if (e.target === detailModal) closeDetail(); });
 
-document.getElementById('events-list').addEventListener('submit', async e => {
-  e.preventDefault();
-  const form = e.target;
-  if (form.dataset.action !== 'save-edit') return;
-
-  const id = form.dataset.id;
-  const data = {
-    name: form.elements['name'].value.trim(),
-    event_date: form.elements['event_date'].value,
-    description: form.elements['description'].value
-  };
-  const btn = form.querySelector('button[type="submit"]');
-  const fb = document.getElementById(`save-fb-${id}`);
-  btn.disabled = true; btn.textContent = 'Salvataggio…';
-
-  try {
-    const res = await fetch(`/api/admin/events/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    if (!res.ok) throw new Error();
-
-    const ev = allEvents.find(e => e.id === id);
-    if (ev) Object.assign(ev, data);
-
-    // Update header in place
-    const card = document.getElementById(`card-${id}`);
-    if (card) {
-      card.querySelector('.event-info h3').textContent = data.name;
-      const meta = card.querySelector('.event-meta');
-      if (meta) meta.innerHTML = `${formatDate(data.event_date)} &middot; ${ev?.media_count || 0} file &middot; <span class="status-badge status-${ev?.status}">${STATUS_LABELS[ev?.status]}</span>`;
-    }
-
-    btn.textContent = '✓ Salvato!';
-    if (fb) fb.textContent = '';
-    setTimeout(() => { btn.textContent = 'Salva modifiche'; btn.disabled = false; }, 2000);
-  } catch {
-    if (fb) fb.textContent = 'Errore durante il salvataggio. Riprova.';
-    btn.textContent = 'Salva modifiche'; btn.disabled = false;
-  }
-});
-
-// ---- Create new event ----
-
-document.getElementById('new-event-btn').addEventListener('click', () => {
-  document.getElementById('create-modal').classList.add('show');
-});
-
-document.getElementById('cancel-create').addEventListener('click', () => {
-  document.getElementById('create-modal').classList.remove('show');
-});
+// ---- Crea nuovo evento ----
+const createModal = document.getElementById('create-modal');
+document.getElementById('new-event-btn').addEventListener('click', () => createModal.classList.add('show'));
+document.getElementById('cancel-create').addEventListener('click', () => createModal.classList.remove('show'));
+createModal.addEventListener('click', e => { if (e.target === createModal) createModal.classList.remove('show'); });
 
 document.getElementById('create-form').addEventListener('submit', async e => {
   e.preventDefault();
@@ -453,19 +351,16 @@ document.getElementById('create-form').addEventListener('submit', async e => {
   const date = document.getElementById('new-date').value;
   const btn = document.getElementById('create-submit');
   btn.disabled = true; btn.textContent = 'Creazione…';
-
   try {
     const res = await fetch('/api/admin/events', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, eventDate: date })
     });
     if (!res.ok) throw new Error();
     const newEv = await res.json();
-    document.getElementById('create-modal').classList.remove('show');
+    createModal.classList.remove('show');
     e.target.reset();
-    // Reload and open the new card so user sees the QR immediately
-    await loadEvents(newEv.id);
+    await loadEvents(newEv.id);  // riapre subito il dettaglio col QR
   } catch {
     alert("Impossibile creare l'evento. Riprova.");
   } finally {
@@ -474,13 +369,10 @@ document.getElementById('create-form').addEventListener('submit', async e => {
 });
 
 // ---- Logout ----
-
 document.getElementById('logout-link').addEventListener('click', async e => {
   e.preventDefault();
   await fetch('/api/admin/logout', { method: 'POST' });
   window.location.href = '/admin/login.html';
 });
-
-// ---- Init ----
 
 loadEvents();
