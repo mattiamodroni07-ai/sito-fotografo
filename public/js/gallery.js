@@ -22,20 +22,53 @@ const io = ('IntersectionObserver' in window)
     }, { rootMargin: '0px 0px -8% 0px' })
   : null;
 
+let lbItems = [];
+let lbIdx = 0;
+let lbTouchX = 0;
+
 document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
 lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+document.getElementById('lb-prev').addEventListener('click', (e) => { e.stopPropagation(); lbPrev(); });
+document.getElementById('lb-next').addEventListener('click', (e) => { e.stopPropagation(); lbNext(); });
+
+lightbox.addEventListener('touchstart', (e) => { lbTouchX = e.touches[0].clientX; }, { passive: true });
+lightbox.addEventListener('touchend', (e) => {
+  const dx = e.changedTouches[0].clientX - lbTouchX;
+  if (dx > 55) lbPrev(); else if (dx < -55) lbNext();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (!lightbox.classList.contains('show')) return;
+  if (e.key === 'ArrowLeft') lbPrev();
+  else if (e.key === 'ArrowRight') lbNext();
+  else if (e.key === 'Escape') closeLightbox();
+});
 
 function closeLightbox() {
   lightbox.classList.remove('show');
   lightboxMedia.innerHTML = '';
 }
 
-function openLightbox(url, type) {
-  lightboxMedia.innerHTML = type === 'video'
-    ? `<video src="${url}" controls autoplay></video>`
-    : `<img src="${url}" alt="">`;
+// Apre il lightbox sulla foto scelta, permettendo di scorrere tra tutte
+function openLightbox(items, index) {
+  lbItems = items;
+  lbIdx = index;
+  showLbMedia();
   lightbox.classList.add('show');
 }
+
+function showLbMedia() {
+  const item = lbItems[lbIdx];
+  lightboxMedia.innerHTML = item.type === 'video'
+    ? `<video src="${item.url}" controls autoplay playsinline></video>`
+    : `<img src="${item.url}" alt="">`;
+  document.getElementById('lb-count').textContent = `${lbIdx + 1} / ${lbItems.length}`;
+  document.getElementById('lb-prev').style.visibility = lbIdx > 0 ? 'visible' : 'hidden';
+  document.getElementById('lb-next').style.visibility = lbIdx < lbItems.length - 1 ? 'visible' : 'hidden';
+}
+
+function lbPrev() { if (lbIdx > 0) { lbIdx--; showLbMedia(); } }
+function lbNext() { if (lbIdx < lbItems.length - 1) { lbIdx++; showLbMedia(); } }
 
 async function checkAdmin() {
   try {
@@ -179,7 +212,7 @@ function renderGallery(items) {
     }
 
     el.appendChild(overlay);
-    el.addEventListener('click', () => openLightbox(item.url, item.type));
+    el.addEventListener('click', () => openLightbox(items, index));
     grid.appendChild(el);
     if (io) io.observe(el);
   });
