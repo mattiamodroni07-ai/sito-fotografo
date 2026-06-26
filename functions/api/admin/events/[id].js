@@ -1,24 +1,48 @@
 import { requireAuth, jsonResponse } from '../../../_utils.js';
 
-// Apre o chiude manualmente gli upload di un evento. Solo fotografo.
+// Aggiorna uno o più campi di un evento (status, name, event_date, description). Solo fotografo.
 export async function onRequestPatch({ request, params, env }) {
   const adminId = await requireAuth(request, env);
   if (!adminId) return jsonResponse({ error: 'Non autorizzato' }, 401);
 
-  const { status } = await request.json();
-  if (status !== 'open' && status !== 'closed') {
-    return jsonResponse({ error: 'Stato non valido' }, 400);
+  const body = await request.json();
+  const sets = [];
+  const vals = [];
+
+  if (body.status !== undefined) {
+    if (body.status !== 'open' && body.status !== 'closed')
+      return jsonResponse({ error: 'Stato non valido' }, 400);
+    sets.push('status = ?'); vals.push(body.status);
+  }
+  if (body.name !== undefined) {
+    if (!body.name.trim()) return jsonResponse({ error: 'Nome non valido' }, 400);
+    sets.push('name = ?'); vals.push(body.name.trim());
+  }
+  if (body.description !== undefined) {
+    sets.push('description = ?'); vals.push(body.description || null);
+  }
+  if (body.event_date !== undefined) {
+    const d = new Date(body.event_date);
+    if (isNaN(d)) return jsonResponse({ error: 'Data non valida' }, 400);
+    sets.push('event_date = ?', 'upload_closes_at = ?', 'archive_at = ?');
+    vals.push(
+      body.event_date,
+      new Date(d.getTime() + 86400000).toISOString(),
+      new Date(d.getTime() + 604800000).toISOString()
+    );
   }
 
+  if (sets.length === 0) return jsonResponse({ error: 'Nessun campo da aggiornare' }, 400);
+
+  vals.push(params.id);
   const result = await env.DB.prepare(
-    "UPDATE events SET status = ? WHERE id = ? AND status != 'archived'"
-  ).bind(status, params.id).run();
+    `UPDATE events SET ${sets.join(', ')} WHERE id = ? AND status != 'archived'`
+  ).bind(...vals).run();
 
-  if (!result.meta || result.meta.changes === 0) {
+  if (!result.meta || result.meta.changes === 0)
     return jsonResponse({ error: 'Evento non trovato o archiviato' }, 404);
-  }
 
-  return jsonResponse({ success: true, status });
+  return jsonResponse({ success: true });
 }
 
 // Elimina un intero evento e tutte le foto/video associate. Solo fotografo.

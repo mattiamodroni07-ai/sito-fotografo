@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS events (
   upload_closes_at TEXT NOT NULL,-- quando si chiudono gli upload (event_date + 7 giorni)
   archive_at TEXT NOT NULL,      -- quando si genera lo zip e si avvisa il fotografo (event_date + 30 giorni)
   status TEXT NOT NULL DEFAULT 'open',  -- open | closed | archived
-  zip_url TEXT                   -- link allo zip finale, una volta generato
+  zip_url TEXT,                  -- link allo zip finale, una volta generato
+  description TEXT               -- note private del fotografo (location, ospiti…)
 );
 
 -- Tabella media: ogni foto/video caricato dagli invitati

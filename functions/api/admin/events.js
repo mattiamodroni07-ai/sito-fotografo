@@ -18,7 +18,8 @@ export async function onRequestGet({ request, env }) {
   await runCleanup(env);
 
   const { results } = await env.DB.prepare(
-    `SELECT e.*, (SELECT COUNT(*) FROM media WHERE event_id = e.id) AS media_count
+    `SELECT e.id, e.name, e.event_date, e.created_at, e.upload_closes_at, e.archive_at, e.status, e.description,
+            (SELECT COUNT(*) FROM media WHERE event_id = e.id) AS media_count
      FROM events e ORDER BY e.created_at DESC`
   ).all();
 
@@ -29,7 +30,7 @@ export async function onRequestPost({ request, env }) {
   const adminId = await requireAuth(request, env);
   if (!adminId) return jsonResponse({ error: 'Non autenticato' }, 401);
 
-  const { name, eventDate } = await request.json();
+  const { name, eventDate, description } = await request.json();
   if (!name || !eventDate) {
     return jsonResponse({ error: 'Dati mancanti' }, 400);
   }
@@ -43,11 +44,12 @@ export async function onRequestPost({ request, env }) {
   const archiveAt = new Date(eventDateObj.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   await env.DB.prepare(
-    `INSERT INTO events (id, name, event_date, created_at, upload_closes_at, archive_at, status)
-     VALUES (?, ?, ?, ?, ?, ?, 'open')`
+    `INSERT INTO events (id, name, event_date, created_at, upload_closes_at, archive_at, status, description)
+     VALUES (?, ?, ?, ?, ?, ?, 'open', ?)`
   ).bind(
     id, name, eventDate, now.toISOString(),
-    uploadClosesAt.toISOString(), archiveAt.toISOString()
+    uploadClosesAt.toISOString(), archiveAt.toISOString(),
+    description || null
   ).run();
 
   return jsonResponse({ id, name, eventDate });
