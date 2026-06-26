@@ -11,6 +11,20 @@ function showToast(message) {
   setTimeout(() => toastEl.classList.remove('show'), 3000);
 }
 
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// Animazione d'ingresso elegante (GSAP se disponibile)
+function animateIn(el) {
+  if (!el || reduceMotion || !window.gsap) return;
+  window.gsap.from(el, { opacity: 0, y: 20, duration: 0.6, ease: 'power3.out' });
+}
+function animateHero() {
+  if (reduceMotion || !window.gsap) return;
+  window.gsap.from('.hero .eyebrow, .hero h1, .hero p', {
+    opacity: 0, y: 18, duration: 0.8, ease: 'power3.out', stagger: 0.09,
+  });
+}
+
 function renderMissingEvent() {
   document.getElementById('event-name').textContent = 'Link non valido';
   appContent.innerHTML = `
@@ -55,6 +69,14 @@ function renderOpenEvent(event) {
   const input = document.getElementById('file-input');
   const grid = document.getElementById('preview-grid');
   const statusEl = document.getElementById('upload-status');
+
+  // Glow che segue il cursore sulla zona di caricamento
+  zone.addEventListener('pointermove', (e) => {
+    const r = zone.getBoundingClientRect();
+    zone.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    zone.style.setProperty('--my', `${e.clientY - r.top}px`);
+  });
+  animateIn(zone);
 
   // Contatore live dei caricamenti
   let total = 0, done = 0, failed = 0;
@@ -143,7 +165,9 @@ async function init() {
       renderOpenEvent(event);
     } else {
       renderClosedEvent(event);
+      animateIn(appContent.firstElementChild);
     }
+    animateHero();
   } catch (err) {
     renderMissingEvent();
   }

@@ -62,6 +62,11 @@ function renderEvents() {
     card.addEventListener('click', () => openDetail(ev));
     list.appendChild(card);
   });
+
+  // Entrata animata delle card
+  if (window.gsap && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    window.gsap.from('.event-card', { opacity: 0, y: 22, duration: 0.6, ease: 'power3.out', stagger: 0.07 });
+  }
 }
 
 // ---- Finestra dettaglio ----
@@ -148,6 +153,12 @@ function openDetail(ev) {
   detailScroll.scrollTop = 0;
   detailModal.classList.add('show');
   document.body.style.overflow = 'hidden';
+
+  if (window.gsap && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    window.gsap.from(detailScroll.querySelectorAll('.detail-section'), {
+      opacity: 0, y: 18, duration: 0.5, ease: 'power3.out', stagger: 0.06, delay: 0.08,
+    });
+  }
 }
 
 function closeDetail() {
@@ -313,6 +324,10 @@ function renderGrid() {
     cell.addEventListener('click', () => openLightbox(gridItems, i));
     grid.appendChild(cell);
   });
+
+  if (window.gsap && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    window.gsap.from(grid.children, { opacity: 0, y: 16, duration: 0.5, ease: 'power3.out', stagger: 0.04 });
+  }
 }
 
 async function downloadItem(item, i) {

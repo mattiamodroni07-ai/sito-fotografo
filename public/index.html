@@ -2,107 +2,85 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Condividi i tuoi ricordi</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/style.css">
 <style>
-  .hero {
-    padding: 56px 0 32px;
-    text-align: center;
-  }
+  .hero { padding: 60px 0 28px; text-align: center; }
+  .hero .eyebrow { display: inline-block; margin-bottom: 12px; }
   .hero h1 {
-    font-size: clamp(32px, 8vw, 48px);
-    margin: 10px 0 8px;
+    font-size: clamp(34px, 9vw, 54px); font-weight: 700; line-height: 1.04;
+    margin: 4px 0 10px;
+    background: linear-gradient(180deg, var(--cream), #C9A98A);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
   }
-  .hero p { color: var(--sage); font-size: 17px; }
+  .hero p { color: var(--muted); font-size: 16px; }
 
   .upload-zone {
-    border: 3px dashed var(--cream-deep);
-    border-radius: var(--radius);
-    padding: 48px 24px;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.2s ease, background 0.2s ease;
-    background: var(--white);
+    position: relative;
+    border: 2px dashed var(--line-strong);
+    border-radius: var(--radius-lg);
+    padding: 52px 24px; text-align: center; cursor: pointer;
+    background: linear-gradient(180deg, var(--surface), var(--bg-2));
+    transition: border-color 0.25s var(--ease-out), background 0.25s ease, transform 0.2s var(--ease-out), box-shadow 0.25s ease;
+    overflow: hidden;
   }
-  .upload-zone.drag-over {
-    border-color: var(--terracotta);
-    background: #FFF8EF;
+  .upload-zone::before {
+    content: ""; position: absolute; inset: -1px;
+    background: radial-gradient(420px 200px at var(--mx,50%) var(--my,0%), rgba(226,122,75,0.16), transparent 70%);
+    opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
   }
-  .upload-zone svg { width: 48px; height: 48px; color: var(--terracotta); margin-bottom: 12px; }
-  .upload-zone .main-text { font-weight: 600; font-size: 17px; margin-bottom: 4px; }
-  .upload-zone .sub-text { color: var(--sage); font-size: 14px; }
+  .upload-zone:hover { transform: translateY(-2px); box-shadow: var(--shadow-soft); }
+  .upload-zone:hover::before { opacity: 1; }
+  .upload-zone.drag-over { border-color: var(--terracotta); background: rgba(226,122,75,0.08); }
+  .upload-zone svg { width: 52px; height: 52px; color: var(--terracotta); margin-bottom: 14px; }
+  .upload-zone .main-text { font-weight: 600; font-size: 18px; margin-bottom: 4px; color: var(--cream); }
+  .upload-zone .sub-text { color: var(--muted); font-size: 14px; }
   input[type="file"] { display: none; }
 
   .upload-status {
-    text-align: center;
-    font-weight: 600;
-    font-size: 15px;
-    margin-top: 16px;
-    color: var(--sage);
-    opacity: 0;
-    transition: opacity 0.2s ease;
+    text-align: center; font-weight: 600; font-size: 15px; margin-top: 18px;
+    color: var(--muted); opacity: 0; transform: translateY(6px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
   }
-  .upload-status.show { opacity: 1; }
+  .upload-status.show { opacity: 1; transform: none; }
   .upload-status.success { color: var(--sage); }
-  .upload-status.error { color: var(--terracotta-deep); }
+  .upload-status.error { color: var(--terracotta); }
 
   .preview-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-    gap: 10px;
-    margin: 20px 0;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
+    gap: 10px; margin: 22px 0;
   }
   .preview-item {
-    position: relative;
-    aspect-ratio: 1;
-    border-radius: 10px;
-    overflow: hidden;
-    background: var(--cream-deep);
+    position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden;
+    background: var(--surface); border: 1px solid var(--line);
+    animation: popIn 0.4s var(--ease-spring) both;
   }
-  .preview-item img, .preview-item video {
-    width: 100%; height: 100%; object-fit: cover;
-  }
-  .preview-item .remove {
-    position: absolute; top: 4px; right: 4px;
-    width: 22px; height: 22px;
-    background: rgba(43,33,24,0.7);
-    color: white; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; cursor: pointer; border: none;
-  }
+  @keyframes popIn { from { opacity: 0; transform: scale(0.86); } to { opacity: 1; transform: none; } }
+  .preview-item img, .preview-item video { width: 100%; height: 100%; object-fit: cover; }
   .preview-item .progress-overlay {
-    position: absolute; inset: 0;
-    background: rgba(43,33,24,0.55);
+    position: absolute; inset: 0; background: rgba(10,7,4,0.6);
     display: flex; align-items: center; justify-content: center;
-    color: white; font-size: 13px; font-weight: 600;
+    color: #fff; font-size: 13px; font-weight: 600;
+    -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
   }
   .preview-item.done .progress-overlay { display: none; }
+  .preview-item.done { box-shadow: 0 0 0 2px rgba(169,184,154,0.5); }
 
-  .closed-state, .gallery-link-state {
-    text-align: center;
-    padding: 40px 24px;
-  }
-  .closed-state .icon, .gallery-link-state .icon { font-size: 40px; margin-bottom: 12px; }
+  .closed-state { text-align: center; padding: 44px 28px; }
+  .closed-state .icon { font-size: 44px; margin-bottom: 14px; }
+  .closed-state p { color: var(--muted); }
 
   .toast {
-    position: fixed;
-    bottom: 24px; left: 50%;
+    position: fixed; bottom: 24px; left: 50%;
     transform: translateX(-50%) translateY(20px);
-    background: var(--ink);
-    color: var(--cream);
-    padding: 14px 24px;
-    border-radius: 999px;
-    font-weight: 600;
-    font-size: 14px;
-    opacity: 0;
-    transition: all 0.3s ease;
-    pointer-events: none;
-    box-shadow: var(--shadow-lift);
-    max-width: 90vw;
-    text-align: center;
+    background: var(--surface-3); color: var(--cream);
+    border: 1px solid var(--line-strong);
+    padding: 14px 24px; border-radius: 999px; font-weight: 600; font-size: 14px;
+    opacity: 0; transition: all 0.3s var(--ease-out); pointer-events: none;
+    box-shadow: var(--shadow-lift); max-width: 90vw; text-align: center; z-index: 50;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
@@ -116,13 +94,12 @@
     <p id="event-sub"></p>
   </div>
 
-  <div id="app-content">
-    <!-- Popolato via JS in base allo stato dell'evento -->
-  </div>
+  <div id="app-content"></div>
 </div>
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
 <script src="/js/upload.js"></script>
 </body>
 </html>

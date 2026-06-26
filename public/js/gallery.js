@@ -1,95 +1,84 @@
+import PhotoSwipeLightbox from 'https://cdn.jsdelivr.net/npm/photoswipe@5/dist/photoswipe-lightbox.esm.min.js';
+
 const params = new URLSearchParams(window.location.search);
 const eventId = params.get('e');
 
 const galleryContent = document.getElementById('gallery-content');
-const lightbox = document.getElementById('lightbox');
-const lightboxMedia = document.getElementById('lightbox-media');
 const zipBtn = document.getElementById('zip-link');
+const filterBar = document.getElementById('filter-bar');
 
 let isAdmin = false;
 let allItems = [];
 let currentFilter = 'all';
 let eventName = 'galleria';
 
-const filterBar = document.getElementById('filter-bar');
+if (window.gsap && window.ScrollTrigger) window.gsap.registerPlugin(window.ScrollTrigger);
 
-// Osservatore per l'animazione d'ingresso delle foto allo scroll
-const io = ('IntersectionObserver' in window)
-  ? new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
-      });
-    }, { rootMargin: '0px 0px -8% 0px' })
-  : null;
-
-let lbItems = [];
-let lbIdx = 0;
-let lbTouchX = 0;
-
-document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
-lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
-document.getElementById('lb-prev').addEventListener('click', (e) => { e.stopPropagation(); lbPrev(); });
-document.getElementById('lb-next').addEventListener('click', (e) => { e.stopPropagation(); lbNext(); });
-
-lightbox.addEventListener('touchstart', (e) => { lbTouchX = e.touches[0].clientX; }, { passive: true });
-lightbox.addEventListener('touchend', (e) => {
-  const dx = e.changedTouches[0].clientX - lbTouchX;
-  if (dx > 55) lbPrev(); else if (dx < -55) lbNext();
-});
-
-document.addEventListener('keydown', (e) => {
-  if (!lightbox.classList.contains('show')) return;
-  if (e.key === 'ArrowLeft') lbPrev();
-  else if (e.key === 'ArrowRight') lbNext();
-  else if (e.key === 'Escape') closeLightbox();
-});
-
-function closeLightbox() {
-  lightbox.classList.remove('show');
-  lightboxMedia.innerHTML = '';
-}
-
-// Apre il lightbox sulla foto scelta, permettendo di scorrere tra tutte
-function openLightbox(items, index) {
-  lbItems = items;
-  lbIdx = index;
-  showLbMedia();
-  lightbox.classList.add('show');
-}
-
-function showLbMedia() {
-  const item = lbItems[lbIdx];
-  lightboxMedia.innerHTML = item.type === 'video'
-    ? `<video src="${item.url}" controls autoplay playsinline></video>`
-    : `<img src="${item.url}" alt="">`;
-  document.getElementById('lb-count').textContent = `${lbIdx + 1} / ${lbItems.length}`;
-  document.getElementById('lb-prev').style.visibility = lbIdx > 0 ? 'visible' : 'hidden';
-  document.getElementById('lb-next').style.visibility = lbIdx < lbItems.length - 1 ? 'visible' : 'hidden';
-}
-
-function lbPrev() { if (lbIdx > 0) { lbIdx--; showLbMedia(); } }
-function lbNext() { if (lbIdx < lbItems.length - 1) { lbIdx++; showLbMedia(); } }
-
-async function checkAdmin() {
-  try {
-    const res = await fetch('/api/admin/me');
-    return res.ok;
-  } catch {
-    return false;
+/* ---------- Smooth scroll (Lenis) + ScrollTrigger ---------- */
+function initSmoothScroll() {
+  if (!window.Lenis || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const lenis = new window.Lenis({ duration: 1.1, smoothWheel: true });
+  function raf(t) { lenis.raf(t); requestAnimationFrame(raf); }
+  requestAnimationFrame(raf);
+  if (window.ScrollTrigger) {
+    lenis.on('scroll', window.ScrollTrigger.update);
+    window.gsap?.ticker.add((t) => lenis.raf(t * 1000));
+    window.gsap?.ticker.lagSmoothing(0);
   }
 }
 
-// Ricava l'estensione reale del file dall'URL (es. .../abc.png -> png)
+/* ---------- PhotoSwipe (foto + video) ---------- */
+const pswp = new PhotoSwipeLightbox({
+  pswpModule: () => import('https://cdn.jsdelivr.net/npm/photoswipe@5/dist/photoswipe.esm.min.js'),
+  bgOpacity: 1,
+  showHideAnimationType: 'zoom',
+  wheelToZoom: true,
+});
+
+// Slide video: contenuto personalizzato
+pswp.on('contentLoad', (e) => {
+  const { content } = e;
+  if (content.data.type === 'video') {
+    e.preventDefault();
+    content.element = document.createElement('div');
+    content.element.className = 'pswp-video-wrap';
+    const v = document.createElement('video');
+    v.src = content.data.src;
+    v.controls = true; v.playsInline = true; v.preload = 'metadata';
+    content.element.appendChild(v);
+  }
+});
+const pauseAllVideos = () => document.querySelectorAll('.pswp video').forEach(v => v.pause());
+pswp.on('change', pauseAllVideos);
+pswp.on('close', pauseAllVideos);
+pswp.init();
+
+function buildDataSource() {
+  return visibleItems().map(it => it.type === 'video'
+    ? { type: 'video', src: it.url, width: it._w || 1280, height: it._h || 720 }
+    : { src: it.url, width: it._w || 1600, height: it._h || 1200 });
+}
+
+function openAt(index) {
+  pswp.options.dataSource = buildDataSource();
+  pswp.loadAndOpen(index);
+}
+
+/* ---------- Admin ---------- */
+async function checkAdmin() {
+  try { const res = await fetch('/api/admin/me'); return res.ok; }
+  catch { return false; }
+}
+
+/* ---------- Download / Zip ---------- */
 function extOf(item) {
   const fromUrl = item.url.split('.').pop().split('?')[0].toLowerCase();
   if (fromUrl && fromUrl.length <= 4) return fromUrl;
   return item.type === 'video' ? 'mp4' : 'jpg';
 }
-
 function fileNameFor(item, index) {
   return `ricordo-${String(index + 1).padStart(3, '0')}.${extOf(item)}`;
 }
-
 async function downloadFile(url, filename) {
   try {
     const res = await fetch(url);
@@ -97,38 +86,28 @@ async function downloadFile(url, filename) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(a.href);
-  } catch {
-    window.open(url, '_blank');
-  }
+  } catch { window.open(url, '_blank'); }
 }
 
-async function deleteMedia(mediaId, el) {
+async function deleteMedia(mediaId) {
   if (!confirm('Sei sicuro di voler eliminare questo file? L\'azione è irreversibile.')) return;
   try {
     const res = await fetch(`/api/events/${eventId}/media/${mediaId}`, { method: 'DELETE' });
     if (!res.ok) throw new Error();
     allItems = allItems.filter(i => i.id !== mediaId);
-    updateCount();
-    refresh();
-  } catch {
-    alert('Impossibile eliminare il file. Riprova.');
-  }
+    updateCount(); refresh();
+  } catch { alert('Impossibile eliminare il file. Riprova.'); }
 }
 
-// Comprime e scarica tutta la galleria come .zip, direttamente nel browser.
 async function downloadAllZip() {
   if (allItems.length === 0 || zipBtn.dataset.busy) return;
   const original = zipBtn.innerHTML;
   zipBtn.dataset.busy = '1';
   zipBtn.style.pointerEvents = 'none';
-
   try {
     const { downloadZip } = await import('https://cdn.jsdelivr.net/npm/client-zip/index.js');
-
     async function* files() {
       for (let i = 0; i < allItems.length; i++) {
         zipBtn.innerHTML = `Preparazione… ${i + 1}/${allItems.length}`;
@@ -136,14 +115,11 @@ async function downloadAllZip() {
         yield { name: fileNameFor(allItems[i], i), input: res };
       }
     }
-
     const blob = await downloadZip(files()).blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `${eventName}.zip`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(a.href);
   } catch {
     alert('Impossibile creare lo ZIP. Riprova o scarica le foto singolarmente.');
@@ -179,57 +155,69 @@ function renderGallery(items) {
 
   items.forEach((item, index) => {
     const el = document.createElement('div');
-    el.className = 'gallery-item animate';
+    el.className = 'gallery-item';
 
     const media = document.createElement(item.type === 'video' ? 'video' : 'img');
     media.src = item.url;
-    if (item.type === 'video') { media.muted = true; media.loop = true; }
+    if (item.type === 'video') {
+      media.muted = true; media.loop = true; media.playsInline = true; media.preload = 'metadata';
+      media.addEventListener('loadedmetadata', () => { item._w = media.videoWidth; item._h = media.videoHeight; });
+    } else {
+      media.alt = '';
+      media.addEventListener('load', () => { item._w = media.naturalWidth; item._h = media.naturalHeight; });
+    }
     el.appendChild(media);
+
+    const grad = document.createElement('div'); grad.className = 'grad'; el.appendChild(grad);
+    if (item.type === 'video') {
+      const b = document.createElement('span'); b.className = 'video-badge'; b.textContent = '▶ Video'; el.appendChild(b);
+    }
 
     const overlay = document.createElement('div');
     overlay.className = 'item-overlay';
 
     const dlBtn = document.createElement('button');
-    dlBtn.className = 'item-btn';
-    dlBtn.title = 'Scarica';
-    dlBtn.innerHTML = ICON_DOWNLOAD;
-    dlBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      downloadFile(item.url, fileNameFor(item, index));
-    });
+    dlBtn.className = 'item-btn'; dlBtn.title = 'Scarica'; dlBtn.innerHTML = ICON_DOWNLOAD;
+    dlBtn.addEventListener('click', (e) => { e.stopPropagation(); downloadFile(item.url, fileNameFor(item, index)); });
     overlay.appendChild(dlBtn);
 
     if (isAdmin) {
       const delBtn = document.createElement('button');
-      delBtn.className = 'item-btn item-btn--danger';
-      delBtn.title = 'Elimina';
-      delBtn.innerHTML = ICON_DELETE;
-      delBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        deleteMedia(item.id, el);
-      });
+      delBtn.className = 'item-btn item-btn--danger'; delBtn.title = 'Elimina'; delBtn.innerHTML = ICON_DELETE;
+      delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteMedia(item.id); });
       overlay.appendChild(delBtn);
     }
 
     el.appendChild(overlay);
-    el.addEventListener('click', () => openLightbox(items, index));
+    el.addEventListener('click', () => openAt(index));
     grid.appendChild(el);
-    if (io) io.observe(el);
   });
 
   galleryContent.innerHTML = '';
   galleryContent.appendChild(grid);
+  animateGrid();
 }
 
-// Mostra le foto in base al filtro attivo (Tutti / Foto / Video)
+function animateGrid() {
+  if (!window.gsap || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const items = galleryContent.querySelectorAll('.gallery-item');
+  window.gsap.set(items, { opacity: 0, y: 26 });
+  if (window.ScrollTrigger) {
+    window.ScrollTrigger.batch(items, {
+      start: 'top 94%',
+      onEnter: (els) => window.gsap.to(els, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out', stagger: 0.06, overwrite: true }),
+    });
+    requestAnimationFrame(() => window.ScrollTrigger.refresh());
+  } else {
+    window.gsap.to(items, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out', stagger: 0.05 });
+  }
+}
+
 function visibleItems() {
   if (currentFilter === 'all') return allItems;
   return allItems.filter(i => i.type === currentFilter);
 }
-
-function refresh() {
-  renderGallery(visibleItems());
-}
+function refresh() { renderGallery(visibleItems()); }
 
 filterBar.addEventListener('click', (e) => {
   const chip = e.target.closest('.chip');
@@ -241,7 +229,17 @@ filterBar.addEventListener('click', (e) => {
 
 zipBtn.addEventListener('click', (e) => { e.preventDefault(); downloadAllZip(); });
 
+/* ---------- Hero intro ---------- */
+function animateHero() {
+  if (!window.gsap || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  window.gsap.from('.hero .eyebrow, .hero h1, .hero p, .top-bar, .filter-bar', {
+    opacity: 0, y: 18, duration: 0.8, ease: 'power3.out', stagger: 0.08,
+  });
+}
+
 async function init() {
+  initSmoothScroll();
+
   if (!eventId) {
     document.getElementById('event-name').textContent = 'Link non valido';
     return;
@@ -254,7 +252,6 @@ async function init() {
       fetch(`/api/events/${eventId}`),
       fetch(`/api/events/${eventId}/media`)
     ]);
-
     if (!eventRes.ok) throw new Error();
     const event = await eventRes.json();
     eventName = event.name;
@@ -262,19 +259,20 @@ async function init() {
 
     allItems = await mediaRes.json();
 
-    // Evento archiviato: i file sono stati rimossi dopo una settimana
     if (event.status === 'archived') {
       document.getElementById('event-count').textContent = '';
       galleryContent.innerHTML = `
         <div class="empty-state">
           <p>I ricordi di questo evento sono stati rimossi una settimana dopo la data dell'evento.</p>
         </div>`;
+      animateHero();
       return;
     }
 
     updateCount();
     if (allItems.length > 0) filterBar.style.display = 'flex';
     refresh();
+    animateHero();
   } catch {
     document.getElementById('event-name').textContent = 'Impossibile caricare la galleria';
   }

@@ -1,43 +1,77 @@
 /* ============================================
-   RICORDI — Design system
-   Palette calda da festa: crema, terracotta, ocra
+   RICORDI — Design system (tema scuro elegante)
+   Sfondo caldo profondo, accenti terracotta/ocra,
+   le foto risaltano sul buio. Animazioni curate.
    ============================================ */
 
 :root {
-  --cream: #FBF3E7;
-  --cream-deep: #F2E6D3;
-  --ink: #2B2118;
-  --terracotta: #D9683B;
-  --terracotta-deep: #B84F28;
-  --ocra: #E8A23D;
-  --sage: #7A8B6F;
-  --white: #FFFEFB;
+  /* Sfondi scuri caldi */
+  --bg: #14100B;
+  --bg-2: #1B1610;
+  --surface: #221C15;
+  --surface-2: #2B241B;
+  --surface-3: #342B20;
+
+  /* Testo */
+  --cream: #F6EEE0;
+  --cream-dim: #E7DAC6;
+  --muted: #B3A48C;
+  --ink: #F6EEE0;            /* compat: ora il testo "scuro" è chiaro */
+
+  /* Accenti caldi (leggermente schiariti per il fondo scuro) */
+  --terracotta: #E27A4B;
+  --terracotta-deep: #C9633A;
+  --ocra: #ECAE4D;
+  --sage: #A9B89A;
+
+  /* Compat con vecchie variabili usate nelle pagine */
+  --cream-deep: var(--surface-2);
+  --white: var(--surface);
+
+  /* Bordi e velature */
+  --line: rgba(246, 238, 224, 0.10);
+  --line-strong: rgba(246, 238, 224, 0.18);
+  --glass: rgba(246, 238, 224, 0.04);
 
   --font-display: 'Fraunces', Georgia, serif;
   --font-body: 'Inter', -apple-system, sans-serif;
 
   --radius: 18px;
-  --shadow-soft: 0 8px 30px rgba(43, 33, 24, 0.08);
-  --shadow-lift: 0 16px 40px rgba(43, 33, 24, 0.14);
+  --radius-lg: 26px;
+  --shadow-soft: 0 14px 40px rgba(0, 0, 0, 0.40);
+  --shadow-lift: 0 26px 70px rgba(0, 0, 0, 0.55);
+  --glow: 0 0 0 1px var(--line), 0 18px 50px rgba(0, 0, 0, 0.5);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+html { scroll-behavior: smooth; }
+
 body {
   font-family: var(--font-body);
-  background: var(--cream);
-  color: var(--ink);
+  color: var(--cream);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  background-image:
+    radial-gradient(1100px 620px at 12% -8%, rgba(226, 122, 75, 0.16), transparent 60%),
+    radial-gradient(900px 560px at 100% 0%, rgba(236, 174, 77, 0.12), transparent 55%),
+    radial-gradient(800px 800px at 50% 120%, rgba(169, 184, 154, 0.08), transparent 60%);
+  background-attachment: fixed;
+  min-height: 100vh;
 }
 
 h1, h2, h3 {
   font-family: var(--font-display);
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
+  color: var(--cream);
 }
 
-a { color: var(--terracotta-deep); text-decoration: none; }
+a { color: var(--terracotta); text-decoration: none; }
 
 .container {
   max-width: 720px;
@@ -58,76 +92,96 @@ a { color: var(--terracotta-deep); text-decoration: none; }
   font-size: 16px;
   border: none;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out), background 0.2s ease;
 }
-
 .btn:active { transform: scale(0.97); }
 
 .btn-primary {
-  background: var(--terracotta);
-  color: var(--white);
-  box-shadow: var(--shadow-soft);
+  background: linear-gradient(135deg, var(--terracotta), var(--terracotta-deep));
+  color: #1a120c;
+  font-weight: 700;
+  box-shadow: 0 10px 26px rgba(226, 122, 75, 0.32);
 }
-
-.btn-primary:hover { background: var(--terracotta-deep); box-shadow: var(--shadow-lift); }
-
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 38px rgba(226, 122, 75, 0.46);
+}
 .btn-primary:disabled {
-  background: #D9C9B3;
+  background: var(--surface-3);
+  color: var(--muted);
   cursor: not-allowed;
   box-shadow: none;
+  transform: none;
 }
 
 .btn-ghost {
-  background: transparent;
-  color: var(--ink);
-  border: 2px solid var(--cream-deep);
+  background: var(--glass);
+  color: var(--cream);
+  border: 1.5px solid var(--line-strong);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
+.btn-ghost:hover { border-color: var(--terracotta); background: rgba(226, 122, 75, 0.10); }
 
-.btn-ghost:hover { border-color: var(--terracotta); }
+/* Riflesso animato sui bottoni primari */
+.btn-primary::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.7s var(--ease-out);
+}
+.btn-primary:hover::after { transform: translateX(120%); }
 
 /* ---- Card ---- */
 .card {
-  background: var(--white);
+  background: linear-gradient(180deg, var(--surface), var(--bg-2));
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow-soft);
   padding: 32px;
 }
 
 /* ---- Input ---- */
-.field {
-  margin-bottom: 18px;
-}
-
+.field { margin-bottom: 18px; }
 .field label {
   display: block;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--sage);
+  letter-spacing: 0.08em;
+  color: var(--muted);
   margin-bottom: 8px;
 }
-
 .field input,
-.field select {
+.field select,
+.field textarea {
   width: 100%;
   padding: 14px 16px;
-  border: 2px solid var(--cream-deep);
+  border: 1.5px solid var(--line-strong);
   border-radius: 12px;
   font-family: var(--font-body);
   font-size: 16px;
-  background: var(--white);
-  color: var(--ink);
-  transition: border-color 0.15s ease;
+  background: var(--bg-2);
+  color: var(--cream);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
-
+.field input::placeholder,
+.field textarea::placeholder { color: rgba(179, 164, 140, 0.6); }
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   outline: none;
   border-color: var(--terracotta);
+  background: var(--surface);
+  box-shadow: 0 0 0 4px rgba(226, 122, 75, 0.14);
 }
 
-/* Focus visibile per accessibilità da tastiera */
+/* Date picker leggibile sul tema scuro */
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.8) sepia(0.4); cursor: pointer; }
+
 a:focus-visible,
 button:focus-visible,
 input:focus-visible {
@@ -138,16 +192,35 @@ input:focus-visible {
 /* ---- Utility ---- */
 .text-center { text-align: center; }
 .eyebrow {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.18em;
   color: var(--terracotta);
 }
-
 .stack { display: flex; flex-direction: column; gap: 12px; }
 .row { display: flex; gap: 12px; align-items: center; }
 
+/* ---- Utility di animazione (usate da GSAP o come fallback) ---- */
+@media (prefers-reduced-motion: no-preference) {
+  .reveal { opacity: 0; transform: translateY(22px); }
+  .reveal.in {
+    opacity: 1; transform: none;
+    transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out);
+  }
+  .fade-up { animation: fadeUp 0.8s var(--ease-out) both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+}
+
+::selection { background: rgba(226, 122, 75, 0.35); color: var(--cream); }
+
+/* Scrollbar coerente col tema */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 8px; border: 2px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--terracotta-deep); }
+
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto; }
 }
