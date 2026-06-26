@@ -26,6 +26,7 @@ function renderEvents(events) {
       <div class="event-actions">
         <button class="icon-btn" title="Mostra QR" data-action="qr" data-id="${event.id}" data-name="${event.name}">▦</button>
         <a class="icon-btn" title="Galleria" href="/galleria.html?e=${event.id}" target="_blank" style="text-decoration:none">🖼</a>
+        <button class="icon-btn icon-btn--danger" title="Elimina evento" data-action="delete" data-id="${event.id}">🗑</button>
       </div>
     `;
     eventsList.appendChild(card);
@@ -55,9 +56,44 @@ function showQrModal(eventId, eventName) {
   qrModal.classList.add('show');
 }
 
-eventsList.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-action="qr"]');
-  if (btn) showQrModal(btn.dataset.id, btn.dataset.name);
+eventsList.addEventListener('click', async (e) => {
+  const qrBtn = e.target.closest('[data-action="qr"]');
+  if (qrBtn) return showQrModal(qrBtn.dataset.id, qrBtn.dataset.name);
+
+  // Click sul cestino → mostra la conferma inline "Eliminare? ✓ ✕"
+  const delBtn = e.target.closest('[data-action="delete"]');
+  if (delBtn) {
+    const actions = delBtn.closest('.event-actions');
+    actions.dataset.prev = actions.innerHTML;
+    actions.innerHTML = `
+      <span class="confirm-label">Eliminare?</span>
+      <button class="icon-btn icon-btn--confirm" data-action="confirm-delete" data-id="${delBtn.dataset.id}" title="Conferma">✓</button>
+      <button class="icon-btn" data-action="cancel-delete" title="Annulla">✕</button>`;
+    return;
+  }
+
+  // Annulla → ripristina i bottoni originali
+  const cancelBtn = e.target.closest('[data-action="cancel-delete"]');
+  if (cancelBtn) {
+    const actions = cancelBtn.closest('.event-actions');
+    actions.innerHTML = actions.dataset.prev;
+    return;
+  }
+
+  // Conferma → elimina davvero evento + tutte le foto
+  const confirmBtn = e.target.closest('[data-action="confirm-delete"]');
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = '…';
+    try {
+      const res = await fetch(`/api/admin/events/${confirmBtn.dataset.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      loadEvents();
+    } catch {
+      alert('Impossibile eliminare l\'evento. Riprova.');
+      loadEvents();
+    }
+  }
 });
 
 document.getElementById('new-event-btn').addEventListener('click', () => createModal.classList.add('show'));

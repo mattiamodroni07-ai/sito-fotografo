@@ -34,7 +34,7 @@
   .status-closed { background: #F2E6D3; color: var(--terracotta-deep); }
   .status-archived { background: #EEE; color: #888; }
 
-  .event-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .event-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
   .icon-btn {
     width: 40px; height: 40px;
     border-radius: 50%;
@@ -44,6 +44,11 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 16px;
   }
+  .icon-btn--danger { color: var(--terracotta-deep); border-color: #F2D6CC; }
+  .icon-btn--danger:hover { background: #FDEEE9; }
+  .icon-btn--confirm { color: #fff; background: var(--terracotta); border-color: var(--terracotta); }
+  .icon-btn--confirm:hover { background: var(--terracotta-deep); }
+  .confirm-label { font-size: 14px; font-weight: 600; color: var(--terracotta-deep); }
 
   .modal-overlay {
     position: fixed; inset: 0;

@@ -4,20 +4,19 @@ const eventId = params.get('e');
 const galleryContent = document.getElementById('gallery-content');
 const lightbox = document.getElementById('lightbox');
 const lightboxMedia = document.getElementById('lightbox-media');
+const zipBtn = document.getElementById('zip-link');
 
 let isAdmin = false;
+let allItems = [];
+let eventName = 'galleria';
 
-document.getElementById('lightbox-close').addEventListener('click', () => {
+document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
+
+function closeLightbox() {
   lightbox.classList.remove('show');
   lightboxMedia.innerHTML = '';
-});
-
-lightbox.addEventListener('click', (e) => {
-  if (e.target === lightbox) {
-    lightbox.classList.remove('show');
-    lightboxMedia.innerHTML = '';
-  }
-});
+}
 
 function openLightbox(url, type) {
   lightboxMedia.innerHTML = type === 'video'
@@ -33,6 +32,17 @@ async function checkAdmin() {
   } catch {
     return false;
   }
+}
+
+// Ricava l'estensione reale del file dall'URL (es. .../abc.png -> png)
+function extOf(item) {
+  const fromUrl = item.url.split('.').pop().split('?')[0].toLowerCase();
+  if (fromUrl && fromUrl.length <= 4) return fromUrl;
+  return item.type === 'video' ? 'mp4' : 'jpg';
+}
+
+function fileNameFor(item, index) {
+  return `ricordo-${String(index + 1).padStart(3, '0')}.${extOf(item)}`;
 }
 
 async function downloadFile(url, filename) {
@@ -57,13 +67,56 @@ async function deleteMedia(mediaId, el) {
     const res = await fetch(`/api/events/${eventId}/media/${mediaId}`, { method: 'DELETE' });
     if (!res.ok) throw new Error();
     el.remove();
+    allItems = allItems.filter(i => i.id !== mediaId);
+    updateCount();
   } catch {
     alert('Impossibile eliminare il file. Riprova.');
   }
 }
 
+// Comprime e scarica tutta la galleria come .zip, direttamente nel browser.
+async function downloadAllZip() {
+  if (allItems.length === 0 || zipBtn.dataset.busy) return;
+  const original = zipBtn.innerHTML;
+  zipBtn.dataset.busy = '1';
+  zipBtn.style.pointerEvents = 'none';
+
+  try {
+    const { downloadZip } = await import('https://cdn.jsdelivr.net/npm/client-zip/index.js');
+
+    async function* files() {
+      for (let i = 0; i < allItems.length; i++) {
+        zipBtn.innerHTML = `Preparazione… ${i + 1}/${allItems.length}`;
+        const res = await fetch(allItems[i].url);
+        yield { name: fileNameFor(allItems[i], i), input: res };
+      }
+    }
+
+    const blob = await downloadZip(files()).blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${eventName}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  } catch {
+    alert('Impossibile creare lo ZIP. Riprova o scarica le foto singolarmente.');
+  } finally {
+    zipBtn.innerHTML = original;
+    zipBtn.style.pointerEvents = '';
+    delete zipBtn.dataset.busy;
+  }
+}
+
 const ICON_DOWNLOAD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
 const ICON_DELETE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>`;
+
+function updateCount() {
+  document.getElementById('event-count').textContent =
+    allItems.length === 1 ? '1 ricordo condiviso' : `${allItems.length} ricordi condivisi`;
+  zipBtn.style.display = allItems.length > 0 ? 'inline-flex' : 'none';
+}
 
 function renderEmpty() {
   galleryContent.innerHTML = `
@@ -79,9 +132,6 @@ function renderGallery(items) {
   grid.className = 'gallery-grid';
 
   items.forEach((item, index) => {
-    const ext = item.type === 'video' ? 'mp4' : 'jpg';
-    const filename = `ricordo-${String(index + 1).padStart(3, '0')}.${ext}`;
-
     const el = document.createElement('div');
     el.className = 'gallery-item';
 
@@ -99,7 +149,7 @@ function renderGallery(items) {
     dlBtn.innerHTML = ICON_DOWNLOAD;
     dlBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      downloadFile(item.url, filename);
+      downloadFile(item.url, fileNameFor(item, index));
     });
     overlay.appendChild(dlBtn);
 
@@ -124,6 +174,8 @@ function renderGallery(items) {
   galleryContent.appendChild(grid);
 }
 
+zipBtn.addEventListener('click', (e) => { e.preventDefault(); downloadAllZip(); });
+
 async function init() {
   if (!eventId) {
     document.getElementById('event-name').textContent = 'Link non valido';
@@ -140,16 +192,12 @@ async function init() {
 
     if (!eventRes.ok) throw new Error();
     const event = await eventRes.json();
+    eventName = event.name;
     document.getElementById('event-name').textContent = event.name;
 
-    const zipLink = document.getElementById('zip-link');
-    zipLink.href = `/api/events/${eventId}/zip`;
-    zipLink.style.display = 'inline-flex';
-
-    const items = await mediaRes.json();
-    document.getElementById('event-count').textContent =
-      items.length === 1 ? '1 ricordo condiviso' : `${items.length} ricordi condivisi`;
-    renderGallery(items);
+    allItems = await mediaRes.json();
+    updateCount();
+    renderGallery(allItems);
   } catch {
     document.getElementById('event-name').textContent = 'Impossibile caricare la galleria';
   }

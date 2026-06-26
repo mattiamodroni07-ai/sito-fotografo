@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pannello fotografo</title>
+<link rel="stylesheet" href="/css/style.css">
+<script>
+  // Scorciatoia: aprendo /admin si va al login, o direttamente alla
+  // dashboard se la sessione del fotografo è ancora valida.
+  fetch('/api/admin/me')
+    .then(res => {
+      location.replace(res.ok ? '/admin/dashboard.html' : '/admin/login.html');
+    })
+    .catch(() => location.replace('/admin/login.html'));
+</script>
+</head>
+<body>
+  <p style="text-align:center; padding:40px; color:var(--sage)">Caricamento…</p>
+</body>
+</html>
