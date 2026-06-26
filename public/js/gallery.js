@@ -8,7 +8,19 @@ const zipBtn = document.getElementById('zip-link');
 
 let isAdmin = false;
 let allItems = [];
+let currentFilter = 'all';
 let eventName = 'galleria';
+
+const filterBar = document.getElementById('filter-bar');
+
+// Osservatore per l'animazione d'ingresso delle foto allo scroll
+const io = ('IntersectionObserver' in window)
+  ? new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { rootMargin: '0px 0px -8% 0px' })
+  : null;
 
 document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
 lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
@@ -66,9 +78,9 @@ async function deleteMedia(mediaId, el) {
   try {
     const res = await fetch(`/api/events/${eventId}/media/${mediaId}`, { method: 'DELETE' });
     if (!res.ok) throw new Error();
-    el.remove();
     allItems = allItems.filter(i => i.id !== mediaId);
     updateCount();
+    refresh();
   } catch {
     alert('Impossibile eliminare il file. Riprova.');
   }
@@ -116,6 +128,7 @@ function updateCount() {
   document.getElementById('event-count').textContent =
     allItems.length === 1 ? '1 ricordo condiviso' : `${allItems.length} ricordi condivisi`;
   zipBtn.style.display = allItems.length > 0 ? 'inline-flex' : 'none';
+  filterBar.style.display = allItems.length > 0 ? 'flex' : 'none';
 }
 
 function renderEmpty() {
@@ -133,7 +146,7 @@ function renderGallery(items) {
 
   items.forEach((item, index) => {
     const el = document.createElement('div');
-    el.className = 'gallery-item';
+    el.className = 'gallery-item animate';
 
     const media = document.createElement(item.type === 'video' ? 'video' : 'img');
     media.src = item.url;
@@ -168,11 +181,30 @@ function renderGallery(items) {
     el.appendChild(overlay);
     el.addEventListener('click', () => openLightbox(item.url, item.type));
     grid.appendChild(el);
+    if (io) io.observe(el);
   });
 
   galleryContent.innerHTML = '';
   galleryContent.appendChild(grid);
 }
+
+// Mostra le foto in base al filtro attivo (Tutti / Foto / Video)
+function visibleItems() {
+  if (currentFilter === 'all') return allItems;
+  return allItems.filter(i => i.type === currentFilter);
+}
+
+function refresh() {
+  renderGallery(visibleItems());
+}
+
+filterBar.addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  currentFilter = chip.dataset.filter;
+  filterBar.querySelectorAll('.chip').forEach(c => c.classList.toggle('is-active', c === chip));
+  refresh();
+});
 
 zipBtn.addEventListener('click', (e) => { e.preventDefault(); downloadAllZip(); });
 
@@ -196,8 +228,20 @@ async function init() {
     document.getElementById('event-name').textContent = event.name;
 
     allItems = await mediaRes.json();
+
+    // Evento archiviato: i file sono stati rimossi dopo una settimana
+    if (event.status === 'archived') {
+      document.getElementById('event-count').textContent = '';
+      galleryContent.innerHTML = `
+        <div class="empty-state">
+          <p>I ricordi di questo evento sono stati rimossi una settimana dopo la data dell'evento.</p>
+        </div>`;
+      return;
+    }
+
     updateCount();
-    renderGallery(allItems);
+    if (allItems.length > 0) filterBar.style.display = 'flex';
+    refresh();
   } catch {
     document.getElementById('event-name').textContent = 'Impossibile caricare la galleria';
   }

@@ -16,13 +16,15 @@ export async function onRequestPost({ request, env }) {
 
   // Verifica che l'evento esista e sia ancora aperto agli upload
   const event = await env.DB.prepare(
-    'SELECT id, status FROM events WHERE id = ?'
+    'SELECT id, status, upload_closes_at FROM events WHERE id = ?'
   ).bind(eventId).first();
 
   if (!event) {
     return jsonResponse({ error: 'Evento non trovato' }, 404);
   }
-  if (event.status !== 'open') {
+  // Chiuso esplicitamente oppure scaduto il termine (1 giorno dopo l'evento)
+  const expired = new Date(event.upload_closes_at) < new Date();
+  if (event.status !== 'open' || expired) {
     return jsonResponse({ error: 'I caricamenti per questo evento sono chiusi' }, 403);
   }
 

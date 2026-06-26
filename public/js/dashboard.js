@@ -18,14 +18,26 @@ function renderEvents(events) {
   events.forEach(event => {
     const card = document.createElement('div');
     card.className = 'card event-card';
+    const count = event.media_count || 0;
+    const countLabel = count === 1 ? '1 file' : `${count} file`;
+
+    // Bottone apri/chiudi upload (non disponibile per eventi archiviati)
+    let toggleBtn = '';
+    if (event.status === 'open') {
+      toggleBtn = `<button class="icon-btn" title="Chiudi caricamenti" data-action="toggle" data-id="${event.id}" data-status="open">🔓</button>`;
+    } else if (event.status === 'closed') {
+      toggleBtn = `<button class="icon-btn" title="Riapri caricamenti" data-action="toggle" data-id="${event.id}" data-status="closed">🔒</button>`;
+    }
+
     card.innerHTML = `
       <div class="event-info">
         <h3>${event.name}</h3>
-        <div class="event-meta">${formatDate(event.event_date)} · <span class="status-badge status-${event.status}">${STATUS_LABELS[event.status]}</span></div>
+        <div class="event-meta">${formatDate(event.event_date)} · ${countLabel} · <span class="status-badge status-${event.status}">${STATUS_LABELS[event.status]}</span></div>
       </div>
       <div class="event-actions">
         <button class="icon-btn" title="Mostra QR" data-action="qr" data-id="${event.id}" data-name="${event.name}">▦</button>
         <a class="icon-btn" title="Galleria" href="/galleria.html?e=${event.id}" target="_blank" style="text-decoration:none">🖼</a>
+        ${toggleBtn}
         <button class="icon-btn icon-btn--danger" title="Elimina evento" data-action="delete" data-id="${event.id}">🗑</button>
       </div>
     `;
@@ -44,7 +56,10 @@ async function loadEvents() {
   }
 }
 
+let currentQrName = 'evento';
+
 function showQrModal(eventId, eventName) {
+  currentQrName = eventId;
   const link = `${window.location.origin}/?e=${eventId}`;
   document.getElementById('qr-event-name').textContent = eventName;
   document.getElementById('qr-link').textContent = link;
@@ -56,9 +71,45 @@ function showQrModal(eventId, eventName) {
   qrModal.classList.add('show');
 }
 
+// Scarica il QR come immagine PNG
+document.getElementById('download-qr').addEventListener('click', () => {
+  const container = document.getElementById('qr-canvas');
+  const canvas = container.querySelector('canvas');
+  const img = container.querySelector('img');
+  const dataUrl = canvas ? canvas.toDataURL('image/png') : (img ? img.src : null);
+  if (!dataUrl) return;
+
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = `qr-${currentQrName}.png`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+});
+
 eventsList.addEventListener('click', async (e) => {
   const qrBtn = e.target.closest('[data-action="qr"]');
   if (qrBtn) return showQrModal(qrBtn.dataset.id, qrBtn.dataset.name);
+
+  // Apri/chiudi caricamenti a mano
+  const toggleBtn = e.target.closest('[data-action="toggle"]');
+  if (toggleBtn) {
+    const next = toggleBtn.dataset.status === 'open' ? 'closed' : 'open';
+    toggleBtn.disabled = true;
+    try {
+      const res = await fetch(`/api/admin/events/${toggleBtn.dataset.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: next })
+      });
+      if (!res.ok) throw new Error();
+      loadEvents();
+    } catch {
+      alert('Impossibile aggiornare lo stato dei caricamenti.');
+      loadEvents();
+    }
+    return;
+  }
 
   // Click sul cestino → mostra la conferma inline "Eliminare? ✓ ✕"
   const delBtn = e.target.closest('[data-action="delete"]');

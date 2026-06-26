@@ -1,5 +1,26 @@
 import { requireAuth, jsonResponse } from '../../../_utils.js';
 
+// Apre o chiude manualmente gli upload di un evento. Solo fotografo.
+export async function onRequestPatch({ request, params, env }) {
+  const adminId = await requireAuth(request, env);
+  if (!adminId) return jsonResponse({ error: 'Non autorizzato' }, 401);
+
+  const { status } = await request.json();
+  if (status !== 'open' && status !== 'closed') {
+    return jsonResponse({ error: 'Stato non valido' }, 400);
+  }
+
+  const result = await env.DB.prepare(
+    "UPDATE events SET status = ? WHERE id = ? AND status != 'archived'"
+  ).bind(status, params.id).run();
+
+  if (!result.meta || result.meta.changes === 0) {
+    return jsonResponse({ error: 'Evento non trovato o archiviato' }, 404);
+  }
+
+  return jsonResponse({ success: true, status });
+}
+
 // Elimina un intero evento e tutte le foto/video associate. Solo fotografo.
 export async function onRequestDelete({ request, params, env }) {
   const adminId = await requireAuth(request, env);

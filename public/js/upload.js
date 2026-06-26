@@ -44,6 +44,7 @@ function renderOpenEvent(event) {
       <div class="sub-text">Puoi selezionare più file insieme</div>
       <input type="file" id="file-input" accept="image/*,video/*" multiple>
     </div>
+    <div class="upload-status" id="upload-status"></div>
     <div class="preview-grid" id="preview-grid"></div>
     <div class="text-center" style="margin-top:8px">
       <a href="/galleria.html?e=${event.id}" class="btn btn-ghost">Vedi tutte le foto caricate</a>
@@ -53,6 +54,26 @@ function renderOpenEvent(event) {
   const zone = document.getElementById('upload-zone');
   const input = document.getElementById('file-input');
   const grid = document.getElementById('preview-grid');
+  const statusEl = document.getElementById('upload-status');
+
+  // Contatore live dei caricamenti
+  let total = 0, done = 0, failed = 0;
+  function updateStatus() {
+    if (total === 0) { statusEl.className = 'upload-status'; statusEl.textContent = ''; return; }
+    const pending = total - done - failed;
+    if (pending > 0) {
+      statusEl.className = 'upload-status show';
+      statusEl.textContent = `Caricamento in corso… ${done}/${total}`;
+    } else if (failed === 0) {
+      statusEl.className = 'upload-status show success';
+      statusEl.textContent = total === 1
+        ? '✓ Foto caricata con successo!'
+        : `✓ Tutte le ${total} caricate con successo!`;
+    } else {
+      statusEl.className = 'upload-status show error';
+      statusEl.textContent = `${done}/${total} caricate · ${failed} non riuscite`;
+    }
+  }
 
   zone.addEventListener('click', () => input.click());
 
@@ -87,6 +108,9 @@ function renderOpenEvent(event) {
 
     grid.prepend(item);
 
+    total++;
+    updateStatus();
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('eventId', eventId);
@@ -95,9 +119,13 @@ function renderOpenEvent(event) {
       .then(res => {
         if (!res.ok) throw new Error('Upload fallito');
         item.classList.add('done');
+        done++;
+        updateStatus();
       })
       .catch(() => {
         overlay.textContent = 'Errore, riprova';
+        failed++;
+        updateStatus();
         showToast('Non è stato possibile caricare ' + file.name);
       });
   }

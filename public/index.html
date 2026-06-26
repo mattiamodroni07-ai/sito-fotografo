@@ -36,6 +36,19 @@
   .upload-zone .sub-text { color: var(--sage); font-size: 14px; }
   input[type="file"] { display: none; }
 
+  .upload-status {
+    text-align: center;
+    font-weight: 600;
+    font-size: 15px;
+    margin-top: 16px;
+    color: var(--sage);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  .upload-status.show { opacity: 1; }
+  .upload-status.success { color: var(--sage); }
+  .upload-status.error { color: var(--terracotta-deep); }
+
   .preview-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
