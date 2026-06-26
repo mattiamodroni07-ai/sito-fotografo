@@ -316,6 +316,60 @@ function showLbMedia() {
 function prevPhoto() { if (lbIdx > 0) { lbIdx--; showLbMedia(); } }
 function nextPhoto() { if (lbIdx < lbPhotos.length - 1) { lbIdx++; showLbMedia(); } }
 
+// Scarica il file attualmente aperto nel lightbox
+async function downloadCurrent() {
+  const item = lbPhotos[lbIdx];
+  if (!item) return;
+  const ext = (item.url.split('.').pop().split('?')[0] || '').toLowerCase();
+  const name = `ricordo-${String(lbIdx + 1).padStart(3, '0')}.${ext.length <= 4 ? ext : (item.type === 'video' ? 'mp4' : 'jpg')}`;
+  try {
+    const res = await fetch(item.url);
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  } catch {
+    window.open(item.url, '_blank');
+  }
+}
+
+// Elimina il file attualmente aperto nel lightbox
+async function deleteCurrent() {
+  const item = lbPhotos[lbIdx];
+  if (!item || !currentEvent) return;
+  if (!confirm('Eliminare definitivamente questo file? L\'azione è irreversibile.')) return;
+  const delBtn = document.getElementById('lb-delete');
+  delBtn.disabled = true;
+  try {
+    const res = await fetch(`/api/events/${currentEvent.id}/media/${item.id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error();
+    lbPhotos.splice(lbIdx, 1);
+    // Aggiorna conteggio evento e card
+    currentEvent.media_count = Math.max(0, (currentEvent.media_count || 1) - 1);
+    const ev = allEvents.find(e => e.id === currentEvent.id);
+    if (ev) ev.media_count = currentEvent.media_count;
+    renderEvents();
+    if (!lbPhotos.length) {
+      closeLightbox();
+    } else {
+      if (lbIdx >= lbPhotos.length) lbIdx = lbPhotos.length - 1;
+      showLbMedia();
+    }
+    // Ricarica la strip e il contatore nella finestra dettaglio
+    loadPhotoStrip(currentEvent.id);
+    const cb = detailScroll.querySelector('.count-badge');
+    if (cb) cb.textContent = currentEvent.media_count;
+  } catch {
+    alert('Impossibile eliminare il file. Riprova.');
+  } finally {
+    delBtn.disabled = false;
+  }
+}
+
+document.getElementById('lb-download').addEventListener('click', e => { e.stopPropagation(); downloadCurrent(); });
+document.getElementById('lb-delete').addEventListener('click', e => { e.stopPropagation(); deleteCurrent(); });
+
 document.getElementById('lb-close').addEventListener('click', closeLightbox);
 lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
 document.getElementById('lb-prev').addEventListener('click', e => { e.stopPropagation(); prevPhoto(); });
