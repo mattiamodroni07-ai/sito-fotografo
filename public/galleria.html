@@ -24,12 +24,43 @@
     overflow: hidden;
     background: var(--cream-deep);
     cursor: pointer;
+    position: relative;
   }
   .gallery-item img, .gallery-item video {
     width: 100%; height: 100%; object-fit: cover;
-    transition: transform 0.2s ease;
+    transition: transform 0.25s ease;
   }
   .gallery-item:hover img, .gallery-item:hover video { transform: scale(1.05); }
+
+  .item-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(20, 15, 10, 0);
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 8px;
+    transition: background 0.2s ease;
+    opacity: 0;
+  }
+  .gallery-item:hover .item-overlay { opacity: 1; background: rgba(20, 15, 10, 0.45); }
+
+  .item-btn {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255,255,255,0.92);
+    color: #2B2118;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s ease, transform 0.15s ease;
+    flex-shrink: 0;
+  }
+  .item-btn svg { width: 16px; height: 16px; }
+  .item-btn:hover { background: #fff; transform: scale(1.1); }
+  .item-btn--danger { color: #DC2626; }
+  .item-btn--danger:hover { background: #FEE2E2; }
 
   .empty-state { text-align: center; padding: 48px 24px; color: var(--sage); }
   .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
@@ -61,7 +92,10 @@
 
   <div class="top-bar">
     <a href="javascript:history.back()" class="btn btn-ghost">← Torna indietro</a>
-    <a id="zip-link" class="btn btn-primary" style="display:none">Scarica tutto (.zip)</a>
+    <a id="zip-link" class="btn btn-primary" style="display:none">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Scarica tutto (.zip)
+    </a>
   </div>
 
   <div id="gallery-content"></div>

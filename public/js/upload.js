@@ -26,7 +26,7 @@ function renderClosedEvent(event) {
   appContent.innerHTML = `
     <div class="card closed-state">
       <div class="icon">📷</div>
-      <p>Non è più possibile aggiungere foto o video, ma puoi ancora ammirare la galleria.</p>
+      <p>Il termine per caricare foto e video è scaduto (1 giorno dalla festa). Puoi ancora vedere e scaricare tutti i ricordi dalla galleria.</p>
       <div style="margin-top:20px">
         <a href="/galleria.html?e=${event.id}" class="btn btn-primary">Guarda la galleria</a>
       </div>
@@ -35,7 +35,7 @@ function renderClosedEvent(event) {
 
 function renderOpenEvent(event) {
   document.getElementById('event-name').textContent = event.name;
-  document.getElementById('event-sub').textContent = 'Carica le tue foto e i tuoi video per condividerli con tutti';
+  document.getElementById('event-sub').textContent = 'Carica le tue foto e i tuoi video — hai tempo fino a 1 giorno dalla festa';
 
   appContent.innerHTML = `
     <div class="upload-zone" id="upload-zone">
