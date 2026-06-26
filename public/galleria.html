@@ -115,7 +115,22 @@
   .lightbox.show img, .lightbox.show video { transform: scale(1); }
   .lightbox .close-btn {
     position: absolute; top: 20px; right: 24px;
-    color: white; font-size: 32px; background: none; border: none; cursor: pointer;
+    color: white; font-size: 32px; background: none; border: none; cursor: pointer; z-index: 2;
+  }
+  /* Navigazione tra le foto: frecce + swipe */
+  .lb-nav {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,0.14); border: none; color: white;
+    width: 46px; height: 46px; border-radius: 50%; cursor: pointer; font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    transition: background 0.15s ease; z-index: 2;
+  }
+  .lb-nav:hover { background: rgba(255,255,255,0.28); }
+  .lb-prev { left: 16px; } .lb-next { right: 16px; }
+  .lb-count {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,255,0.55); font-size: 13px; font-weight: 600; pointer-events: none;
   }
 </style>
 </head>
@@ -147,7 +162,10 @@
 
 <div class="lightbox" id="lightbox">
   <button class="close-btn" id="lightbox-close">×</button>
+  <button class="lb-nav lb-prev" id="lb-prev" aria-label="Precedente">‹</button>
   <div id="lightbox-media"></div>
+  <button class="lb-nav lb-next" id="lb-next" aria-label="Successivo">›</button>
+  <div class="lb-count" id="lb-count"></div>
 </div>
 
 <script src="/js/gallery.js"></script>
